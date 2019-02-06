@@ -1,0 +1,22 @@
+==Deployments==
+
+List of proposed deployments.
+
+State can be defined, active, failed. Dates are in UTC.
+
+{| class="wikitable sortable"
+! Name
+! Bit
+! Mainnet Start
+! Mainnet Second Chance
+! Mainnet Expire
+! Mainnet Flag
+! Mainnet State
+! Testnet Start
+! Testnet Second Chance
+! Testnet Expire
+! Testnet Flag
+! Testnet State
+! BIPs
+|-
+|}

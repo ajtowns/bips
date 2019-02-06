@@ -1,0 +1,26 @@
+digraph {
+  "rankdir"="TD";
+
+  "DEFINED" -> "STARTED" [label="startheight"];
+  "STARTED" -> "SECONDARY" [label="secondaryheight"];
+
+  "STARTED" -> "LOCKED_IN" [label="threshold reached"];
+  "SECONDARY" -> "LOCKED_IN" [label="100% signalling"];
+
+  "SECONDARY" -> "FAILED" [label="finishheight"];
+
+  "ENFORCED" [shape=box];
+  "SECONDARY" -> "ENFORCED" [label="flagheight"];
+  "ENFORCED" -> "LOCKED_IN" [label="retarget period"];
+
+  "LOCKED_IN" -> "ACTIVE" [label="retarget period"];
+  "ENFORCED" -> "FAILED" -> "LOCKED_IN" [style=invis];
+  { rank=same; "ENFORCED" "LOCKED_IN"; "ACTIVE"; }
+
+  "DEFINED" [group="time"];
+  "STARTED" [group="time"];
+  "SECONDARY" [group="time"];
+  "FAILED" [group="time"];
+}
+
+
