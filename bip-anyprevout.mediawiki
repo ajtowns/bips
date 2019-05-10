@@ -1,0 +1,213 @@
+<pre>
+  BIP: bip-anyprevout
+  Layer: Consensus (soft fork)
+  Title: SIGHASH_ANYPREVOUT for Taproot Scripts
+  Author: Anthony Towns <aj@erisian.com.au>
+  Comments-Summary: No comments yet.
+  Comments-URI:
+  Status: Draft
+  Type: Standards Track
+  Created:
+  License: BSD-3-Clause
+  Replaces: 118
+</pre>
+
+== Introduction ==
+
+=== Abstract ===
+
+This BIP describes a new type of public key for tapscript (bip-tapscript) transactions.
+It allows signatures for these public keys to not commit to the exact output being spent.
+This enables dynamic binding of transactions to different UTXOs, provided they have compatible scripts.
+
+=== Copyright ===
+
+This document is licensed under the 3-clause BSD license.
+
+=== Motivation ===
+
+Off-chain protocols make use of transactions that are not yet broadcast to the Bitcoin network in order to renegotiate the final state that should be settled on-chain.
+In a number of cases it is desirable to respond to a given transaction being seen on-chain with a predetermined reaction in the form of another transaction.
+Often the same reaction is desired for a variety of different transactions that may be seen on-chain, but the application still needs to create a unique response transaction.
+Because the input signatures in the response transaction commit to the exact transaction that is being reacted to, this means the private signing key needs to be used to create such transactions.
+
+This proposal introduces a new public key type<ref>'''Why a new public key type?'''
+New public key types for tapscript can be introduced in a soft fork by specifying new rules for ''unknown public key types'' as specified in bip-tapscript, as this only requires adding restrictions to the pre-existing signature opcodes.
+Possible alternative approaches would be to define new script opcodes, to use a different taproot leaf version, or to use a different set of SegWit outputs than what is specified by bip-taproot; however all of these approaches are more complicated, and are better reserved for other upgrades where the additional flexibility those approaches offer is actually needed.
+In this case, we specify a new transaction digest, but retain the same elliptic curve and signature algorithm (ie, secp256k1 and bip-schnorr).</ref>
+that modifies the behavior of the transaction digest algorithm used in the signature creation and verification, by excluding the commitment to the previous output (and, optionally, the witness script<ref>'''Why (and why not) commit to the witness script?'''
+The [https://blockstream.com/eltoo.pdf eltoo] paper provides an example of why committing to the witness script is not always appropriate.
+It uses script and the transaction <code>nLockTime</code> to make signatures asymmetric, so that a transaction with an earlier signature can be spent by a transaction with a later signature, but a transaction with a later signature cannot be spent by a transaction with an earlier signature.
+As a result, a single signature for a third, even later transaction must be able to spend both the prior transactions, even though they have a different tapscript.
+On the other hand, these cases also provide a good reason to have the option to commit to the script: because each transaction has a new script, committing to the script allows you to produce a signature that applies to precisely one of these transactions.
+In the eltoo case, this allows you to have a signature for an update transaction that can be applied to any prior update, and a signature for a settlement transaction that applies only to the corresponding update transaction, while using the same key for both, which in turn allows for a more compact script.
+</ref>).
+Removing this commitment allows dynamic rebinding of a signed transaction to another previous output of the same value that requires authorisation by the same key.
+
+The dynamic rebinding is opt-in due to using a separate public key type, and can be further restricted by using different keys, by committing to the script being spent in the signature, by using different amounts between UTXOs, by using different nSequence values in the spending transaction, or by using the codeseparator opcode to commit to the position in the script.
+
+== Specification ==
+
+This BIP modifies the behaviour of the bip-tapscript signature opcodes<ref>'''What about key path spends?'''
+This proposal only supports ANYPREVOUT spends via script path, and does not support ANYPREVOUT key path spends.
+This is for three reasons: first, not supporting key path spends allows this proposal to be independent of the core changes included in bip-taproot and bip-tapscripts; second, it is not possible to require chaperone signatures via a key path spend; and third, it allows addresses to opt-in or opt-out of ANYPREVOUT support while remaining indistinguishable prior to being spent.
+</ref> (<code>CHECKSIG</code>, <code>CHECKSIGVERIFY</code>, and <code>CHECKSIGADD</code>) for public keys that have a first byte of <code>0x00</code> or <code>0x01</code><ref>'''Use of 0x00 and 0x01'''
+There are 125 free pairs of prefixes (128 total, with <code>0x02/0x03</code> already used, and <code>0x04</code> and <code>0x06/0x07</code> unavailable), and we just choose the first available.
+This also allows the use of <code>OP_1</code> for a 1-byte push of the taproot internal key.
+(1-byte push opcodes are also available for <code>0x08/0x09</code>, <code>0x0a/0x0b</code>, <code>0x0c/0x0d</code>, <code>0x0e/0x0f</code>, and <code>0x10</code> via <code>OP_8</code> to <code>OP_16</code> and also <code>0x81</code> via <code>OP_1NEGATE</code>)
+</ref>.
+These keys are termed '''bip-anyprevout keys'''.
+
+==== Rules for signature opcodes ====
+
+The bip-tapscript rules for signature opcodes are modified by removing keys with the first byte <code>0x00</code> or <code>0x01</code> from the list of unknown public key types, and adding the following rule prior to the handling of unknown public key types:
+
+* If the first byte of the public key is <code>0x00</code> or <code>0x01</code>, it is considered to be a bip-anyprevout public key:
+** If the public key is not 33 bytes and is not the single byte <code>0x01</code>, the script MUST fail and terminate immediately.
+** If the signature is not the empty vector, the signature is validated according to the bip-taproot signing validation rules with the public key, allowable <code>hash_type</code> values, and transaction digest modified as defined below.
+
+==== Public key ====
+
+Because bip-schnorr public keys are defined via a 33 byte vector beginning with <code>0x02</code> or <code>0x03</code>, bip-anyprevout public keys (which begin with <code>0x00</code> or <code>0x01</code>) must be converted first before they can be validated against a signature.
+The conversion procedure is:
+
+* If the bip-anyprevout public key is the single byte <code>0x01</code>, then the public key used for bip-taproot signing validation rules is the taproot internal key<ref>'''Taproot Internal Key'''
+Signing with the taproot internal key implies the ability to have signed via the taproot key path, however, in the case of a <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> signature, this can be done before calculating the taproot output key or scriptPubKey or even knowing all the scripts.
+Using the single byte <code>0x01</code> as a shortcut for this key means that it can be pushed via the single byte opcode <code>OP_1</code> making this a very efficient way to encode a script.
+</ref> (ie, ''bytes(P)'' using the notation from bip-taproot).
+* If the bip-anyprevout public key is 33 bytes, it is converted to a bip-schnorr compatible public key by setting bit-1 in the first byte, so that the first byte of the public key used for verification is <code>0x02</code> or <code>0x03</code> and the remaining 32 bytes match those of the bip-anyprevout public key value on the stack.
+
+==== hash_type ====
+
+In addition to the <code>hash_type</code> values allowed by bip-taproot, the values <code>0x41</code>, <code>0x42</code>, <code>0x43</code>, <code>0xc1</code>, <code>0xc2</code>, and <code>0xc3</code> are also valid for bip-anyprevout public keys.
+
+We define the following constants using bits 6 and 7 of <code>hash_type</code>:
+
+* <code>0x00 SIGHASH_ALLINPUT</code>
+* <code>0x80 SIGHASH_ANYONECANPAY</code>
+* <code>0x40 SIGHASH_ANYPREVOUT</code>
+* <code>0xc0 SIGHASH_ANYPREVOUTANYSCRIPT</code>
+
+and say, eg, that "<code>SIGHASH_ANYPREVOUT</code> is set" when <code>hash_type & 0xc0 == SIGHASH_ANYPREVOUT</code>.
+
+==== Transaction digest ====
+
+As the message for signature opcodes signature validation, the transaction digest for a bip-anyprevout public key has the same definition as in bip-tapscript, except the following:
+
+* In all cases, <code>key_version</code> is set to the constant value <code>0x00</code> instead of <code>0x02</code>.<ref>'''Why change key_version?'''
+Changing <code>key_version</code> ensures that if the same private key is used to generate both a bip-tapscript key and a bip-anyprevout key, that a signature for the bip-tapscript key is not also valid for the bip-anyprevout key (and vice-versa).</ref>
+* If <code>SIGHASH_ANYPREVOUT</code> is set, the digest is calculated as if <code>SIGHASH_ANYONECANPAY</code> was set, except <code>outpoint</code> is not included in the digest.
+* If <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> is set, the digest is calculated as if <code>SIGHASH_ANYONECANPAY</code> was set, except <code>outpoint</code>, <code>scriptPubKey</code> and <code>tapleaf_hash</code> are not included in the digest.
+
+When <code>SIGHASH_ANYPREVOUT</code> is set, the input to the transaction digest in bytes is shorter than for the corresponding <code>SIGHASH_ANYONECANPAY</code> transaction digest by 36 bytes (the size of an outpoint).
+When <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> is set, the input to the transaction digest is shorter than when <code>SIGHASH_ANYPREVOUT</code> is set by a further 68 or 56 bytes (36 or 24 bytes for the <code>scriptPubKey</code> and 32 bytes for <code>tapleaf_hash</code>).
+
+==== Chaperone signature ====
+
+When an ANYPREVOUT signature is used, it must be chaperoned by a fixed prevout signature (that is, a non-ANYPREVOUT signature).<ref>'''Are chaperone signatures necessary?'''
+There is some dispute about whether the risks of signature replay or additional malleability have any practical impact or need prevention at the consensus layer rather than simply at the wallets or second-layer protocol level (eg, see [https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2018-May/015943.html (1)] or [https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2019-March/016788.html (2)]).
+The design philosophy this proposal adopts is that changes to consensus should come with a positive argument that they do not make things less safe, rather than a negative argument that there is insufficient proof they make things unsafe.
+Without the addition of chaperone signatures, no such positive argument for the safety of ANYPREVOUT is known: while it may, in fact, be safe to use ANYPREVOUT signatures alone, there is no theoretical proof of this, nor a large body of experience demonstrating it in practice.
+The argument provided in the '''Security''' section aims to show the security of chaperoned ANYPREVOUT signatures is effectively equivalent to that of current signatures, and thus positively show that things are no less safe.</ref>
+
+To achieve this, three flags are introduced, <code>v0_anyprevout</code>, <code>v0_fixedprevout</code>, <code>v2_fixedprevout</code>, all initially set to false at the start of script execution.
+They are set true as follows:
+
+* When a signature opcode succeeds with a public key whose first byte is <code>0x02</code> or <code>0x03</code> and a non-null signature, the flag <code>v2_fixedprevout</code> is set to true.
+* When a signature opcode succeeds with a bip-anyprevout public key and a non-null signature:
+** If <code>SIGHASH_ANYPREVOUT</code> or <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> is set, the flag <code>v0_anyprevout</code> is set to true.
+** Otherwise (if <code>SIGHASH_ALLINPUT</code> or <code>SIGHASH_ANYONECANPAY</code> is set) the flag <code>v0_fixedprevout</code> is set to true.
+
+At the end of script execution, if <code>v0_anyprevout</code> is set to true, but both <code>v2_fixedprevout</code> and <code>v0_fixedprevout</code> remain false, the script MUST fail. <ref>'''Why not always require a fixed prevout signature?'''
+An alternative approach would be to always require a fixed prevout signature, whether an ANYPREVOUT signature is used or not -- that is require <code>v2_fixedprevout</code> to be true at end of script execution, and not track <code>v0_anyprevout</code> or <code>v0_fixedprevout</code> at all.
+This would provide a stronger guarantee: any node validating a transaction will either be sure that the inputs are signed in a way it recognises, or (if some future signature upgrade is in use) consider the transaction completely unencumbered (due to the presences of an <code>OP_SUCCESSx</code> operator that enabled the upgrade).
+The drawback is that it would severely constrain the ability to use unknown public key types to introduce new transaction digests, or potentially new signature algorithms (such as a changing to a different elliptic curve), as any such future change would need to be accompanied by a bip-tapscript signature.
+By contrast, choosing whether to require a chaperone signature only when introducing new public key types or signatures that are not known to be safe means that when we introduce something new that we are confident is safe, we are not forced into requiring an unnecesary chaperone.</ref>
+
+== Security ==
+
+==== Signature replay ====
+
+Compared to <code>SIGHASH_ALLINPUT</code> and <code>SIGHASH_ANYONECANPAY</code> signatures, <code>SIGHASH_ANYPREVOUT</code> and <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> introduce additional potential for signature replay, where the same signature is reused on a different transaction.
+
+Both <code>SIGHASH_ALLINPUT</code> and <code>SIGHASH_ANYONECANPAY</code> signatures prevent signature replay by committing to one or more inputs, so replay of the signature is only possible if the same input can be spent multiple times, which is not possible on the Bitcoin blockchain since BIP 30 and BIP 34.
+With <code>SIGHASH_ANYPREVOUT</code> signature replay is possible for different UTXOs with the same <code>scriptPubKey</code> and the same value, while with <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> signature replay is possible for different UTXOs with the same value, that reuse the same bip-anyprevout public key in one of their potential scripts.
+
+As a consequence, where signature replay would cause loss of funds or otherwise be undesirable, protocol designers and wallets MUST ensure they do not reuse addresses when using ANYPREVOUT signatures, and MUST ensure they also do not reuse bip-anyprevout public keys in scripts if signing with <code>SIGHASH_ANYPREVOUTANYSCRIPT</code>.
+
+==== Malleability ====
+
+Use of <code>SIGHASH_ANYPREVOUT</code> or <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> may introduce additional malleability vectors.
+
+In particular, a transaction authenticated using only ANYPREVOUT signatures is malleable to anyone able to provide an alternate input satisfied by the signature -- an input changed in this way would produce a new, valid transaction paying the same recipient, but with a different txid.
+Depending on the changes to the inputs, this might conflict with the original transaction (if some inputs remain shared) or might result in a double-payment to the recipient (if they do not).
+
+Further, for a chain of transactions using the same <code>scriptPubKey</code> and value (as envisioned in eltoo for rare failure cases), and only authenticated via ANYPREVOUT signatures, it may be possible for any third party to malleate the transactions (and their txids) without having access to any of the private keys, particularly by omitting intermediate transactions.
+
+This form of malleation can be dealt with by the child transactions also using ANYPREVOUT signatures -- when a parent transaction is malleated, its children can simply be adjusted to reference the new txid as the input and the ANYPREVOUT signatures remain valid.
+
+However child transactions that are authorised by a <code>SIGHASH_ALLINPUT</code> or <code>SIGHASH_ANYONECANPAY</code> signature will need new signatures if their inputs are malleated in this way.
+This risk may be mitigated somewhat by using BIP 68/112 relative time locks before spending a UTXO that had been authorised via an ANYPREVOUT signature with <code>SIGHASH_ALLINPUT</code> or <code>SIGHASH_ANYONECANPAY</code>: a relative timelock can ensure that the inputs have enough confirmations that they can only be replaced in the event of a large block reorg.
+Note that this approach has drawbacks: relative timelocks prevent fee-bumping via child-pays-for-parent, and have the obvious drawback of making the funds temporarily unusable until the timelock expires.
+
+==== Effects of chaperone signature ====
+
+The introduction of the chaperone signature can be analysed in two ways.
+
+First, the security of a transaction signed by an ANYPREVOUT signature and a chaperone signature is no worse than a transaction signed by a chaperone signature alone.
+This ensures that transactions have no worse security properties than is already possible if a private key for an address is shared: double spends and double payments are only possible when holders of the private key make multiple signatures, and transactions are only malleable if the holders of the private keys choose to sign the malleated transaction.
+Provided the private keys for chaperone signatures are not shared in fundamentally less secure ways than existing private keys for multisig addresses, this should ensure that Bitcoin users receiving payments that have been authorised by ANYPREVOUT signatures do not need to take additional security measures compared to other payments.
+
+Second, the efficiency of signing a transaction with an ANYPREVOUT signature and a chaperone signature is not significantly worse than with an ANYPREVOUT signature alone.
+In particular, the private key for the ANYPREVOUT signature can be treated as a 1-of-N multisig requirement, via a key shared between everyone authorised to publish the transaction -- since by the time the transaction is ready to be published all the inputs must be known, and therefore the chaperone signature can be generated.
+Note that this adds overhead, both to the transaction itself and to the node publishing the transaction.
+It also introduces another vector for witness malleability, as the multiple potential publishers of the transaction could each produce a different chaperone signature, which will produce a different <code>wtxid</code> for each signature, despite retaining the same <code>txid</code>.
+This has the potential to slightly alter the fee rate (by the use of a 65-byte signature rather than a 64-byte signature), and potentially degrade block relay performance (if the block has one signature, but the node the block is being relayed to has a different signature in its mempool).
+
+As such, protocol designers SHOULD not use well-known private keys for the chaperone signature, but SHOULD instead generate those private keys in a secure manner, and SHOULD limit the distribution of those private keys.
+Further signers SHOULD use a secure, deterministic method for generating the chaperone signature, such as that specified in bip-schnorr.
+
+==== Privacy considerations ====
+
+It is expected that ANYPREVOUT signatures will only be rarely used in practice.
+Protocol and wallet designers should aim to have their transactions use Taproot key path spends whenever possible, both for efficiency reasons due to the lower transaction weight, but also for privacy reasons to avoid third parties being able to distinguish their transactions from those of other protocols.
+
+Transactions that do use ANYPREVOUT signatures will therefore reveal information about the transaction, potentially including that cooperation was impossible, or what protocol or software in use (due to the details of the script).
+
+In order to maximise privacy, it is therefore recommended that protocol designers only use bip-anyprevout public keys in scripts that will be spent using at least one ANYPREVOUT signature, and either use key path spends or alternate scripts in the merkle tree for spends that can be authorised without ANYPREVOUT signatures.
+Following this recommendation may require additional script branches, which may mean disregarding this recommendation may result in an better tradeoff between cost and privacy in some circumstances.
+
+== Rationale ==
+
+<references />
+
+== Deployment ==
+
+This may be deployed as a soft-fork either concurrent with, or subsequent to the deployment of bip-schnorr, bip-taproot and bip-tapscript.
+
+== Backwards compatibility ==
+
+As a soft fork, older software will continue to operate without modification.
+Nodes that have not upgraded to support bip-taproot will see all taproot witness programs as anyone-can-spend scripts, and nodes that have upgraded to support bip-taproot and bip-tapscript but not this BIP will simply treat any non-empty signature against a bip-anyprevout public key as valid, however will still validate the chaperone signature if it is against a bip-tapscript public key.
+As such, nodes are strongly encourage to upgrade in order to fully validate signatures for the new public key type.
+
+Non-upgraded wallets can receive and send bitcoin from non-upgraded and upgraded wallets using SegWit version 0 programs, traditional pay-to-pubkey-hash, etc.
+Depending on the implementation non-upgraded wallets may be able to send to Segwit version 1 programs if they support sending to BIP173 Bech32 addresses and non-standardness of these outputs does not prevent transaction broadcasting.
+Non-upgraded wallets can send bitcoin to upgraded wallets using Segwit version 1 programs nested in BIP16 P2SH.
+
+== Differences to BIP 118 ==
+
+Apart from being based on Taproot rather than SegWit v0, the main semantic differences to BIP 118 are:
+
+* BIP 118 NOINPUT signatures do not commit to the output's spending conditions either via <code>scriptPubKey</code> or the redeem/witness script. This proposal preserves that behaviour when <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> is used, but commits to <code>scriptPubKey</code> and the tapscript when <code>SIGHASH_ANYPREVOUT</code> is used.
+* <code>OP_CODESEPARATOR</code> in script will affect both <code>SIGHASH_ANYPREVOUT</code> and <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> signatures with this proposal, whereas it would not affect BIP 118 NOINPUT signatures.
+* BIP 118 would likely have worked for direct public key spends (assuming deployment was fleshed out in a way similar to BIP 141 P2WPKH and P2WSH), however this proposal only applies to signatures via tapscript, and not direct key path spends.
+* This proposal requires chaperone signatures, which BIP 118 does not.
+* This proposal uses "ANYPREVOUT" rather than "NOINPUT" to reflect that while any prevout value may be used with the signature, some aspects of the input are still committed to, namely the prevout's value, the input nSequence value, and (optionally) the spending conditions.
+
+== Acknowledgements ==
+
+The <code>SIGHASH_NOINPUT</code> flag was first proposed by Joseph Poon in [https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2016-February/012460.html February 2016], after being mentioned in the original [http://lightning.network/lightning-network-paper.pdf Lightning paper] by Joseph Poon and Thaddeus Dryja.
+Christian Decker made a formal proposal for NOINPUT in [https://github.com/bitcoin/bips/blob/master/bip-0118.mediawiki BIP-118], and significant parts of that proposal are included herein.
+This document is the result of discussions with many people and had direct input from Greg Maxwell, Jonas Nick, Pieter Wuille and others.
+
