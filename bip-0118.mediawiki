@@ -91,7 +91,7 @@ Changing <code>key_version</code> ensures that if the same private key is used t
 * If <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> is set, the digest is calculated as if <code>SIGHASH_ANYONECANPAY</code> was set, except <code>outpoint</code>, <code>scriptPubKey</code> and <code>tapleaf_hash</code> are not included in the digest.
 
 When <code>SIGHASH_ANYPREVOUT</code> is set, the input to the transaction digest in bytes is shorter than for the corresponding <code>SIGHASH_ANYONECANPAY</code> transaction digest by 36 bytes (the size of an outpoint).
-When <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> is set, the input to the transaction digest is shorter than when <code>SIGHASH_ANYPREVOUT</code> is set by a further 68 or 56 bytes (36 or 24 bytes for the <code>scriptPubKey</code> and 32 bytes for <code>tapleaf_hash</code>).
+When <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> is set, the input to the transaction digest is shorter than when <code>SIGHASH_ANYPREVOUT</code> is set by a further 68 bytes (36 bytes for the <code>scriptPubKey</code> and 32 bytes for <code>tapleaf_hash</code>).
 
 == Security ==
 
@@ -102,7 +102,7 @@ By design, <code>SIGHASH_ANYPREVOUT</code> and <code>SIGHASH_ANYPREVOUTANYSCRIPT
 Both <code>SIGHASH_ALLINPUT</code> and <code>SIGHASH_ANYONECANPAY</code> signatures prevent signature replay by committing to one or more inputs, so replay of the signature is only possible if the same input can be spent multiple times, which is not possible on the Bitcoin blockchain since BIP 30 and BIP 34.
 With <code>SIGHASH_ANYPREVOUT</code> signature replay is possible for different UTXOs with the same <code>scriptPubKey</code> and the same value, while with <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> signature replay is possible for different UTXOs with the same value, that reuse the same BIP 118 public key in one of their potential scripts.
 
-As a consequence, where signature replay would cause loss of funds or otherwise be undesirable, protocol designers and wallets MUST ensure they do not reuse addresses when using ANYPREVOUT signatures, and MUST ensure they also do not reuse BIP 118 public keys in scripts if signing with <code>SIGHASH_ANYPREVOUTANYSCRIPT</code>.
+As a consequence, implementors MUST ensure that BIP 118 public keys are only reused when signature replay cannot cause loss of funds (eg due to other features of the protocol or other constraints on the transaction), or when such a loss of funds is acceptable.
 
 ==== Malleability ====
 
