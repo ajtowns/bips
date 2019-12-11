@@ -49,7 +49,7 @@ The dynamic rebinding is opt-in due to using a separate public key type, and the
 This BIP modifies the behaviour of the bip-tapscript signature opcodes<ref>'''What about key path spends?'''
 This proposal only supports ANYPREVOUT spends via script path, and does not support ANYPREVOUT key path spends.
 This is for two reasons: first, not supporting key path spends allows this proposal to be independent of the core changes included in bip-taproot and bip-tapscript; second, it allows addresses to opt-in or opt-out of ANYPREVOUT support while remaining indistinguishable prior to being spent.
-</ref> (<code>CHECKSIG</code>, <code>CHECKSIGVERIFY</code>, and <code>CHECKSIGADD</code>) for public keys that have a length of 33 bytes and a first byte is <code>0x01</code> or the public key which is precisely the single byte <code>0x01</code><ref>'''Use of 0x01 public key type'''
+</ref> (<code>CHECKSIG</code>, <code>CHECKSIGVERIFY</code>, and <code>CHECKSIGADD</code>) for public keys that have a length of 33 bytes and a first byte of <code>0x01</code> or the public key which is precisely the single byte vector <code>0x01</code><ref>'''Use of 0x01 public key type'''
 Because <code>OP_0</code> leaves an empty vector on the stack it would not satisfy bip-tapscript's rules for unknown public key types. As such, it is convenient to use one of <code>OP_1..OP_16</code> or <code>OP_1NEGATE</code> as a way to reference the taproot internal key.
 To keep things as simple as possible, we simply use the first of these, and add the same byte as a prefix to allow ANYPREVOUT signatures for explicitly specified keys.
 </ref>.
@@ -99,7 +99,7 @@ When <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> is set, the input to the transacti
 
 By design, <code>SIGHASH_ANYPREVOUT</code> and <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> introduce additional potential for signature replay (that is they allow the same signature to be reused on a different transaction) when compared to <code>SIGHASH_ALLINPUT</code> and <code>SIGHASH_ANYONECANPAY</code> signatures.
 
-Both <code>SIGHASH_ALLINPUT</code> and <code>SIGHASH_ANYONECANPAY</code> signatures prevent signature replay by committing to one or more inputs, so replay of the signature is only possible if the same input can be spent multiple times, which is not possible on the Bitcoin blockchain since BIP 30 and BIP 34.
+Both <code>SIGHASH_ALLINPUT</code> and <code>SIGHASH_ANYONECANPAY</code> signatures prevent signature replay by committing to one or more inputs, so replay of the signature is only possible if the same input can be spent multiple times, which is not possible on the Bitcoin blockchain due to enforcement of BIP 30 and BIP 34.
 With <code>SIGHASH_ANYPREVOUT</code> signature replay is possible for different UTXOs with the same <code>scriptPubKey</code> and the same value, while with <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> signature replay is possible for different UTXOs with the same value, that reuse the same BIP 118 public key in one of their potential scripts.
 
 As a consequence, implementors MUST ensure that BIP 118 public keys are only reused when signature replay cannot cause loss of funds (eg due to other features of the protocol or other constraints on the transaction), or when such a loss of funds is acceptable.
@@ -142,7 +142,7 @@ This may be deployed as a soft-fork either concurrent with, or subsequent to the
 == Backwards compatibility ==
 
 As a soft fork, older software will continue to operate without modification.
-Nodes that have not upgraded to support bip-taproot will see all taproot witness programs as anyone-can-spend scripts, and nodes that have upgraded to support bip-taproot and bip-tapscript but not this BIP will simply treat any non-empty signature against a BIP 118 public key as valid, however will still validate the chaperone signature if it is against a bip-tapscript public key.
+Nodes that have not upgraded to support bip-taproot will see all taproot witness programs as anyone-can-spend scripts, and nodes that have upgraded to support bip-taproot and bip-tapscript but not BIP 118 will simply treat any non-empty signature against a BIP 118 public key as valid.
 As such, nodes are strongly encourage to upgrade in order to fully validate signatures for the new public key type.
 
 Non-upgraded wallets can receive and send bitcoin from non-upgraded and upgraded wallets using SegWit version 0 programs, traditional pay-to-pubkey-hash, etc.
