@@ -68,30 +68,74 @@ To convert a 1-byte BIP 118 public key for use with bip-schnorr, simply use the 
 
 To convert a 33-byte BIP 118 public key for use with bip-schnorr, simply remove the <code>0x01</code> prefix and use the remaining 32 bytes.
 
-==== hash_type ====
+==== Signature message ====
 
-In addition to the <code>hash_type</code> values allowed by bip-taproot, the values <code>0x41</code>, <code>0x42</code>, <code>0x43</code>, <code>0xc1</code>, <code>0xc2</code>, and <code>0xc3</code> are also valid for BIP 118 public keys.
+The function ''SigMsg118(hash_type, ext_flag)'' computes the message being signed as a byte array, analogously to ''SigMsg(hash_type, ext_flag)'' defined in bip-taproot, ''SigExt118(hash_type,key_version)'' computes the extension, similarly to bip-tapscript.
+
+The parameter ''hash_type'' is an 8-bit unsigned value, reusing values defined in bip-taproot, with the addition that the values <code>0x41</code>, <code>0x42</code>, <code>0x43</code>, <code>0xc1</code>, <code>0xc2</code>, and <code>0xc3</code> are also valid for BIP 118 public keys.
 
 We define the following constants using bits 6 and 7 of <code>hash_type</code>:
 
-* <code>0x00 SIGHASH_ALLINPUT</code>
-* <code>0x80 SIGHASH_ANYONECANPAY</code>
-* <code>0x40 SIGHASH_ANYPREVOUT</code>
-* <code>0xc0 SIGHASH_ANYPREVOUTANYSCRIPT</code>
+* <code>SIGHASH_ANYPREVOUT = 0x40</code>
+* <code>SIGHASH_ANYPREVOUTANYSCRIPT = 0xc0</code>
 
-and say, eg, that "<code>SIGHASH_ANYPREVOUT</code> is set" when <code>(hash_type & 0xc0) == SIGHASH_ANYPREVOUT</code>.
+As per bip-taproot, the parameter ''ext_flag'' is an integer in the range 0-127, used for indicating that extensions are added at the end of the message. The parameter ''key_version'' is an 8-bit unsigned value (an integer in the range 0-255) used for committing to the public key version.
 
-==== Transaction digest ====
+The following restrictions apply and cause validation failure if violated:
+* Using any undefined ''hash_type'' (not ''0x00'', ''0x01'', ''0x02'',  ''0x03'', ''0x41'', ''0x42'', ''0x43', ''0x81'', ''0x82'', ''0x83', ''0xc1'', ''0xc2'', or ''0xc3'.
+* Using <code>SIGHASH_SINGLE</code> with a "corresponding output" (an output with the same index as the input being verified).
 
-As the message for signature opcodes signature validation, the transaction digest for a BIP 118 public key has the same definition as in bip-tapscript, except the following:
+If these restrictions aren't violated, ''SigMsg118(hash_type,ext_flag)'' evaluates to the concatenation of the following data, in order (with byte size of each item listed in parentheses). Numerical values in 2, 4, or 8-byte items are encoded in little-endian.
 
-* In all cases, <code>key_version</code> is set to the constant value <code>0x01</code> instead of <code>0x00</code>.<ref>'''Why change key_version?'''
-Changing <code>key_version</code> ensures that if the same private key is used to generate both a bip-tapscript key and a BIP 118 public key, that a signature for the bip-tapscript key is not also valid for the BIP 118 public key (and vice-versa).</ref>
+* Control:
+** ''hash_type'' (1).
+* Transaction data:
+** ''nVersion'' (4): the ''nVersion'' of the transaction.
+** ''nLockTime'' (4): the ''nLockTime'' of the transaction.
+** If the ''hash_type & 0xc0'' is zero:
+*** ''sha_prevouts'' (32): the SHA256 of the serialization of all input outpoints.
+*** ''sha_amounts'' (32): the SHA256 of the serialization of all input a mounts.
+*** ''sha_sequences'' (32): the SHA256 of the serialization of all input ''nSequence''.
+** If ''hash_type & 3'' does not equal <code>SIGHASH_NONE</code> or <code>SIGHASH_SINGLE</code>:
+*** ''sha_outputs'' (32): the SHA256 of the serialization of all outputs in <code>CTxOut</code> format.
+* Data about this input:
+** ''spend_type'' (1): equal to ''(ext_flag * 2) + annex_present'', where ''annex_present'' is 0 if no annex is present, or 1 otherwise (the original witness stack has two or more witness elements, and the first byte of the last element is ''0x50'')
+** If ''hash_type & 0xc0'' is not <code>SIGHASH_ANYPREVOUTANYSCRIPT</codE>:
+*** ''scriptPubKey'' (35): ''scriptPubKey'' of the previous output spent by this input, serialized as script inside <code>CTxOut</code>. Its size is always 35 bytes.
+** If ''hash_type & 0xc0'' is <code>SIGHASH_ANYONECANPAY</code>:
+*** ''outpoint'' (36): the <code>COutPoint</code> of this input (32-byte hash + 4-byte little-endian).
+** If ''hash_type & 0xc0'' is non-zero:
+*** ''amount'' (8): value of the previous output spent by this input.
+*** ''nSequence'' (4): ''nSequence'' of this input.
+** If ''hash_type & 0x80'' does not equal <code>SIGHASH_ANYONECANPAY</code>:
+*** ''input_index'' (4): index of this input in the transaction input vector. Index of the first input is 0.
+** If an annex is present (the lowest bit of ''spend_type'' is set):
+*** ''sha_annex'' (32): the SHA256 of ''(compact_size(size of annex) || annex)'', where ''annex'' includes the mandatory ''0x50'' prefix.
+* Data about this output:
+** If ''hash_type & 3'' equals <code>SIGHASH_SINGLE</code>:
+*** ''sha_single_output'' (32): the SHA256 of the corresponding output in <code>CTxOut</code> format.
+
+Similarly, ''SigExt118(hash_type,key_version)'' evaluates to the concatenation of:
+
+* Extension:
+** If ''hash_type & 0xc0'' is not <code>SIGHASH_ANYPREVOUTANYSCRIPT</codE>:
+*** ''tapleaf_hash'' (32): the tapleaf hash as defined in bip-taproot
+** ''key_version'' (1).
+** ''codesep_pos'' (4): the opcode position of the last executed <code>OP_CODESEPARATOR</code> before the currently executed signature opcode, with the value in little endian (or ''0xffffffff'' if none executed). The first opcode in a script has a position of 0. A multi-byte push opcode is counted as one opcode, regardless of the size of data being pushed.
+
+Note that if ''hash_type & 0x40'' is zero, ''SigMsg118(hash_type,ext_flag) == SigMsg(hash_type,ext_flag)'', and ''SigExt118(hash_type,0x00) == ext'' (where ''ext'' is the message extension as defined in bip-tapscript).
+
+To verify a signature ''sig'' for a BIP 118 public key ''p'':
+
+* If the ''sig'' is 64 bytes long, return ''Verify(p, hash<sub>TapSigHash</sub>(0x00 || SigMsg118(0x00, 1) || SigExt118(0x00, 0x02), sig)'', where ''Verify'' is defined in bip-schnorr.
+* If the ''sig'' is 65 bytes long, return ''sig[64] &ne; 0x00 and Verify(p, hash<sub>TapSighash</sub>(0x00 || SigMsg118(sig[64], 1) || SigExt118(sig[64], 0x02), sig[0:64])''.
+* Otherwise, fail.
+
+The key differences from bip-tapscript signature verification are:
+
+* In all cases, <code>key_version</code> is set to the constant value <code>0x01</code> instead of <code>0x00</code>.<ref>'''Why change key_version?''' Changing <code>key_version</code> ensures that if the same private key is used to generate both a bip-tapscript key and a BIP 118 public key, that a signature for the bip-tapscript key is not also valid for the BIP 118 public key (and vice-versa).</ref>
 * If <code>SIGHASH_ANYPREVOUT</code> is set, the digest is calculated as if <code>SIGHASH_ANYONECANPAY</code> was set, except <code>outpoint</code> is not included in the digest.
 * If <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> is set, the digest is calculated as if <code>SIGHASH_ANYONECANPAY</code> was set, except <code>outpoint</code>, <code>scriptPubKey</code> and <code>tapleaf_hash</code> are not included in the digest.
-
-When <code>SIGHASH_ANYPREVOUT</code> is set, the input to the transaction digest in bytes is shorter than for the corresponding <code>SIGHASH_ANYONECANPAY</code> transaction digest by 36 bytes (the size of an outpoint).
-When <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> is set, the input to the transaction digest is shorter than when <code>SIGHASH_ANYPREVOUT</code> is set by a further 68 bytes (36 bytes for the <code>scriptPubKey</code> and 32 bytes for <code>tapleaf_hash</code>).
 
 == Security ==
 
