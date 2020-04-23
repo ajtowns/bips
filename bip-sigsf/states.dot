@@ -1,26 +1,30 @@
 digraph {
   "rankdir"="TD";
 
-  "DEFINED" -> "STARTED" [label="startheight"];
-  "STARTED" -> "SECONDARY" [label="secondaryheight"];
+  "*" -> "DISABLED" [label="signal_period=0\nquiet_period=-1"];
+  "*" -> "DEFINED";
 
-  "STARTED" -> "LOCKED_IN" [label="threshold reached"];
-  "SECONDARY" -> "LOCKED_IN" [label="100% signalling"];
+  "DEFINED" -> "SIGNAL" [label="signal_height"];
+  "SIGNAL" -> "FAILED" [label="signal_period\nquiet_period=-1"];
+  "SIGNAL" -> "LOCKED_IN" [label="threshold passed"];
+  "LOCKED_IN" -> "ACTIVE" [label="1 period"];
 
-  "SECONDARY" -> "FAILED" [label="finishheight"];
+  "SIGNAL" -> "QUIET" [label="signal_period\nquiet_period>=0"];
+  "QUIET" -> "UASF" [label="quiet_period"];
+  "UASF" -> "LOCKED_IN" [label="threshold passed"];
+  "UASF" -> "LOCKED_IN" [label="uasf_period-1"];
 
-  "ENFORCED" [shape=box];
-  "SECONDARY" -> "ENFORCED" [label="flagheight"];
-  "ENFORCED" -> "LOCKED_IN" [label="retarget period"];
+  "DISABLED" [shape=box];
+  "FAILED" [shape=box];
+  "ACTIVE" [shape=box];
 
-  "LOCKED_IN" -> "ACTIVE" [label="retarget period"];
-  "ENFORCED" -> "FAILED" -> "LOCKED_IN" [style=invis];
-  { rank=same; "ENFORCED" "LOCKED_IN"; "ACTIVE"; }
+  "QUIET" -> "UASF" [style=invis];
+  "QUIET" -> "FAILED" [style=invis];
 
-  "DEFINED" [group="time"];
-  "STARTED" [group="time"];
-  "SECONDARY" [group="time"];
-  "FAILED" [group="time"];
+  { rank=same; "QUIET" "UASF" "LOCKED_IN"; }
+  { rank=same; "DISABLED" "FAILED" "ACTIVE"; }
+
+  // "DEFINED" [group="time"];
 }
 
 

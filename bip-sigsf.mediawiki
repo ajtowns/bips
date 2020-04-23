@@ -1,6 +1,6 @@
 <pre>
   BIP: ???
-  Title: Simplified version bits deployments
+  Title: Modern soft-fork deployments
   Author: ...
   Comments-Summary: No comments yet.
   Comments-URI: ???
@@ -12,7 +12,7 @@
 
 ==Abstract==
 
-This document specifies a proposed change to the semantics of the 'version' field in Bitcoin blocks, allowing multiple backward-compatible changes (further called "soft forks") to be deployed in parallel. It relies on interpreting the version field as a bit vector, where each bit can be used to track an independent change. These are tallied each retarget period. Once the consensus change succeeds or times out, there is a "fallow" pause after which the bit can be reused for later changes.
+This document specifies a proposed change to the semantics of the 'version' field in Bitcoin blocks, allowing multiple backward-compatible changes (further called "soft forks") to be deployed in parallel. It relies on interpreting the version field as a bit vector, where each bit can be used to track an independent change. These are tallied each retarget period. Once the consensus change succeeds or fails, the bit can be reused for later changes.
 
 ==Motivation==
 
@@ -24,10 +24,14 @@ Each soft fork deployment is specified by the following per-chain parameters (fu
 
 # The '''name''' specifies a very brief description of the deployment, reasonable for use as an identifier.
 # The '''bit''' determines which bit in the nVersion field of the block is to be used to signal the soft fork lock-in and activation. It is chosen from the set {0,1,2,...,12}.
-# The '''startheight''' specifies a minimum block height at which the bit gains its meaning.
-# The '''endheight''' specifies the height at which the deployment is considered failed, if the soft fork has not locked in.
-# The optional '''secondaryheight''' to allow for forced activation after signalling fails.
-# The '''threshold''' specifies the number of signally blocks in a retarget period that will cause the change to activate. This should be 1916 for mainnet (95% of 2016) and 1512 for testnet (75% of 2016).
+# The '''period''' specifies the number of blocks considered as a unit. This should be 2016 for mainnet and testnet, and 144 for regtest.
+# The '''signal_height''' specifies a minimum block height at which the bit gains its meaning, and must be a multiple of '''period'''.
+# The '''signal_period''' specifies how many periods the first phase of signalling lasts. May be -1 to specify "forever".
+# The '''quiet_period''' specifies how many periods there are between the first phase of signalling and the second phase of signalling (which precedes mandatory activation). May be -1 to specify "forever", in which case mandatory activation will not occur.
+# The '''uasf_period''' speficies ohw many periods there are for the second phase of signalling prior to mandatory activation.
+# The '''threshold''' specifies the number of signally blocks in a retarget period that will cause the change to activate. This should be 1916 for mainnet (95% of 2016), 1512 for testnet (75% of 2016) and 108 for regtest (75% of 144).
+
+REST NEEDS EDITS
 
 ===User Activated Soft Forks===
 
