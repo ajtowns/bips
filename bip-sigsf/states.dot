@@ -1,28 +1,34 @@
 digraph {
-  "rankdir"="TD";
+  rankdir=TD;
 
-  "*" -> "DEFINED";
+  node  [style="rounded,filled,bold", shape=box, fixedsize=true, width=1.3, fontname="Arial"];
 
+  edge [weight = 100];
   "DEFINED" -> "SIGNAL" [label="signal_height"];
   "SIGNAL" -> "FAILED" [label="signal_period\nuasf disabled"];
-  "SIGNAL" -> "LOCKED_IN" [label="threshold passed"];
   "LOCKED_IN" -> "ACTIVE" [label="1 period"];
-
-  "SIGNAL" -> "QUIET" [label="signal_period\nuasf enabled"];
   "QUIET" -> "UASF" [label="quiet_period"];
-  "UASF" -> "LOCKED_IN" [label="threshold passed"];
   "UASF" -> "LOCKED_IN" [label="uasf_period-1"];
 
-  "FAILED" [shape=box];
-  "ACTIVE" [shape=box];
+  edge [weight = 1];
+  "SIGNAL" -> "QUIET" [label="signal_period\nuasf enabled"];
 
-  "QUIET" -> "UASF" [style=invis];
-  "QUIET" -> "FAILED" [style=invis];
+  thresh [shape=point,width=0.01,height=0.01];
+  "SIGNAL" -> thresh [dir=none, label="threshold passed"];
+  "UASF" -> thresh [dir=none];
+  "thresh" -> "LOCKED_IN";
 
-  { rank=same; "QUIET" "UASF" "LOCKED_IN"; }
-  { rank=same; "FAILED" "ACTIVE"; }
+  "SIGNAL" [fillcolor="#a0a0ff"];
+  "QUIET" [fillcolor="#a0a0ff"];
+  "UASF" [fillcolor="#a0a0ff"];
 
-  // "DEFINED" [group="time"];
+  "LOCKED_IN" [fillcolor="#ffffa0"];
+  "ACTIVE" [fillcolor="#a0ffa0", shape=box];
+
+  "FAILED" [fillcolor="#ffa0a0", shape=box];
+
+  { rank=same; "SIGNAL" "QUIET" }
+  { rank=sink; "FAILED" "ACTIVE"; }
 }
 
 
