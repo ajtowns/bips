@@ -1,20 +1,18 @@
 digraph {
   "rankdir"="TD";
 
-  "*" -> "DISABLED" [label="signal_period=0\nquiet_period=-1"];
   "*" -> "DEFINED";
 
   "DEFINED" -> "SIGNAL" [label="signal_height"];
-  "SIGNAL" -> "FAILED" [label="signal_period\nquiet_period=-1"];
+  "SIGNAL" -> "FAILED" [label="signal_period\nuasf disabled"];
   "SIGNAL" -> "LOCKED_IN" [label="threshold passed"];
   "LOCKED_IN" -> "ACTIVE" [label="1 period"];
 
-  "SIGNAL" -> "QUIET" [label="signal_period\nquiet_period>=0"];
+  "SIGNAL" -> "QUIET" [label="signal_period\nuasf enabled"];
   "QUIET" -> "UASF" [label="quiet_period"];
   "UASF" -> "LOCKED_IN" [label="threshold passed"];
   "UASF" -> "LOCKED_IN" [label="uasf_period-1"];
 
-  "DISABLED" [shape=box];
   "FAILED" [shape=box];
   "ACTIVE" [shape=box];
 
@@ -22,7 +20,7 @@ digraph {
   "QUIET" -> "FAILED" [style=invis];
 
   { rank=same; "QUIET" "UASF" "LOCKED_IN"; }
-  { rank=same; "DISABLED" "FAILED" "ACTIVE"; }
+  { rank=same; "FAILED" "ACTIVE"; }
 
   // "DEFINED" [group="time"];
 }
