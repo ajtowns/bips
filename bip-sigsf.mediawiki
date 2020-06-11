@@ -101,15 +101,17 @@ The new consensus rules for each soft fork are enforced for each block that has 
 
 <img src="bip-sigsf/states.png" align="middle"></img>
 
-A blocks state potentially depends on three things: the previous state, the height, and any signalling that occurred within the last period. The previous state is the first thing to reason about:
+===Implementation Sketch===
+
+A block's state potentially depends on three things: the previous state, the height, and any signalling that occurred within the last period. The previous state is the first thing to reason about:
 
     State GetStateForBlock(const Block* block) {
 
-        State prev_state = (block.height == 0 ? DEFINED : GetStateForBlock(block.parent));
+        State prev_state = (block->height == 0 ? DEFINED : GetStateForBlock(block->parent));
 
 All blocks within a retarget period have the same state, so if we're not at a period boundary, that state does not change:
 
-        if (block.height % period != 0) {
+        if (block->height % period != 0) {
             return prev_state;
         }
 
@@ -131,20 +133,20 @@ Otherwise we will transition states depending on either the height or signalling
             int count = 0;
             const Block* walk = block;
             for (i = 0; i < period; i++) {
-                walk = walk.parent;
-                if ((walk.nVersion & 0xE0000000) != 0x20000000) continue;
-                if ((walk.nVersion >> bit) & 1) count++;
+                walk = walk->parent;
+                if ((walk->nVersion & 0xE0000000) != 0x20000000) continue;
+                if ((walk->nVersion >> bit) & 1) count++;
             }
             if (count >= threshold) return LOCKED_IN;
         }
 
 Otherwise, we transition based on height:
 
-        if (block.height < start_height) {
+        if (block->height < start_height) {
             return DEFINED;
         }
 
-        const int periods = (block.height - start_height) / period;
+        const int periods = (block->height - start_height) / period;
         if (periods < primary_periods) {
             return PRIMARY;
         } else if (activation_mode == CONDITIONAL) {
@@ -177,9 +179,12 @@ The 2016 block period (aligned with difficulty retargeting) is convenient for mo
 
 == Rationale ==
 
-...
+Some notes to maybe expand on:
 
-improvements to bip9: provides a way to lock in a soft-fork despite miner obstruction. uses heights instead of timestamps to make it simpler to understand. drops number of version bits to 13 (0-12) to match bip-320 (version bits above that seem to be actively used for rolling on mainnet).
+improvements to bip9:
+* provides a way to lock in a soft-fork despite miner obstruction.
+* uses heights instead of timestamps to make it simpler to understand.
+* drops number of version bits to 13 (0-12) to match bip-320 (version bits above that seem to be actively used for rolling on mainnet)
 
 improvements to bip8: allows a deployed soft-fork to fail if it doesn't achieve consensus.
 
@@ -187,13 +192,9 @@ compatible with bip148 style forced activation: being height based it's easy to 
 
 this requires devs to judge if consensus has been reached, but only after 12-18 months of the code being active on mainnet; and only code change dependent on devs' judgement is switching the "uasf_enabled_by_default" boolean for the deployment from false to true, so if dev's go crazy, user's can easily fork a client to behave as they want.
 
-for normal soft-forks that only restrict behaviour of previously non-standard transactions, miners do not risk losing money at any point, unless the deliberately mine non-standard transactions.
+for normal soft-forks that only restrict behaviour of previously non-standard transactions, miners do not risk losing money at any point, unless they deliberately mine non-standard transactions.
 
-requiring the UASF timeframe to be set from day one, allows eventual reuse of bits even if a soft fork was
-never activated, so it's clear that the new use of the bit refers to a
-new BIP.  It's deliberately very coarse grained, to take into account
-reasonable development and deployment delays.  There are unlikely to be
-enough failed proposals to cause a bit shortage. (13 bits with a 3.5 year lifespan per bit would cope with a new soft-fork attempt every four months)
+requiring the UASF timeframe to be set from day one, allows eventual reuse of bits even if a soft fork was never activated, so it's clear that the new use of the bit refers to a new BIP.  It's deliberately very coarse grained, to take into account reasonable development and deployment delays.  There are unlikely to be enough failed proposals to cause a bit shortage. (13 bits with a 3.5 year lifespan per bit would cope with a new soft-fork attempt every four months)
 
 ==Deployments==
 
