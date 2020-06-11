@@ -140,23 +140,21 @@ Otherwise we will transition states depending on either the height or signalling
 
 Otherwise, we transition based on height:
 
-        {
-            if (block.height < start_height) {
-                return DEFINED;
-            }
+        if (block.height < start_height) {
+            return DEFINED;
+        }
 
-            const int periods = (block.height - start_height) / period;
-            if (periods < primary_periods) {
-                return PRIMARY;
-            } else if (activation_mode == CONDITIONAL) {
-                return FAILED;
-            } else if (periods < primary_periods + quiet_periods) {
-                return QUIET;
-            } else if (periods < primary_periods + quiet_periods + secondary_periods) {
-                return SECONDARY;
-            } else {
-                return LOCKED_IN;
-            }
+        const int periods = (block.height - start_height) / period;
+        if (periods < primary_periods) {
+            return PRIMARY;
+        } else if (activation_mode == CONDITIONAL) {
+            return FAILED;
+        } else if (periods < primary_periods + quiet_periods) {
+            return QUIET;
+        } else if (periods < primary_periods + quiet_periods + secondary_periods) {
+            return SECONDARY;
+        } else {
+            return LOCKED_IN;
         }
 
 And we're done:
