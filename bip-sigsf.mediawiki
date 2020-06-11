@@ -1,6 +1,6 @@
 <pre>
   BIP: ???
-  Title: Soft-Fork Activation via Hashpower or Height
+  Title: Conditional or Guaranteed Soft-Fork Activation
   Author: ...
   Comments-Summary: No comments yet.
   Comments-URI: ???
@@ -101,17 +101,11 @@ The new consensus rules for each soft fork are enforced for each block that has 
 
 <img src="bip-sigsf/states.png" align="middle"></img>
 
-Blocks prior to the starting height have state DEFINED for each deployment, by definition.
+A blocks state potentially depends on three things: the previous state, the height, and any signalling that occurred within the last period. The previous state is the first thing to reason about:
 
-    State GetStateForBlock(block) {
-        if (block.height < start_height) {
-            return DEFINED;
-        }
+    State GetStateForBlock(const Block* block) {
 
-Otherwise, a blocks state potentially depends on three things: the previous state, the height, and any signalling that occurred within the last period. The previous state is the first thing to reason about:
-
-        State prev_state = (block.height == 0 ? DEFINED : GetStateForBlock(block.parent);
-
+        State prev_state = (block.height == 0 ? DEFINED : GetStateForBlock(block.parent));
 
 All blocks within a retarget period have the same state, so if we're not at a period boundary, that state does not change:
 
@@ -119,28 +113,27 @@ All blocks within a retarget period have the same state, so if we're not at a pe
             return prev_state;
         }
 
-If the previous state was ACTIVE or FAILED, this is final:
+The ACTIVE and FAILED states are final:
 
         if (prev_state == ACTIVE || prev_state == FAILED) {
             return prev_state;
         }
 
-The LOCKED_IN state only lasts for a single period, so since we know we're at a period boundary, we can immediately transition to ACTIVE:
+The LOCKED_IN state only lasts for a single period, so since we now know we're at a period boundary, we can immediately transition to ACTIVE:
 
         if (prev_state == LOCKED_IN) {
             return ACTIVE;
         }
 
-Otherwise we will transition states depending on either the height or signalling. First, check signalling:
+Otherwise we will transition states depending on either the height or signalling. First, if applicable, check signalling:
 
         if (prev_state == PRIMARY || prev_state == SECONDARY) {
             int count = 0;
-            walk = block;
+            const Block* walk = block;
             for (i = 0; i < period; i++) {
                 walk = walk.parent;
-                if (walk.nVersion & 0xE0000000 == 0x20000000 && ((walk.nVersion >> bit) & 1)) {
-                    count++;
-                }
+                if ((walk.nVersion & 0xE0000000) != 0x20000000) continue;
+                if ((walk.nVersion >> bit) & 1) count++;
             }
             if (count >= threshold) return LOCKED_IN;
         }
@@ -148,7 +141,11 @@ Otherwise we will transition states depending on either the height or signalling
 Otherwise, we transition based on height:
 
         {
-            int periods = (block.height - start_height) / period;
+            if (block.height < start_height) {
+                return DEFINED;
+            }
+
+            const int periods = (block.height - start_height) / period;
             if (periods < primary_periods) {
                 return PRIMARY;
             } else if (activation_mode == CONDITIONAL) {
@@ -157,17 +154,18 @@ Otherwise, we transition based on height:
                 return QUIET;
             } else if (periods < primary_periods + quiet_periods + secondary_periods) {
                 return SECONDARY;
-            } else if (periods < primary_periods + quiet_periods + secondary_periods) {
-                return LOCKED_IN;
             } else {
-                return ACTIVE;
+                return LOCKED_IN;
             }
         }
 
+And we're done:
+
+    } // GetStateForBlock()
 
 It should be noted that the states are maintained along block chain branches, but may need recomputation when a reorganization happens.
 
-Given that the state for a specific block/deployment combination is completely determined by its ancestry before the current retarget period, it is possible to implement the mechanism above efficiently and safely by caching the resulting state of every multiple-of-2016 block, indexed by its parent.
+Because the state for a specific block/deployment combination is completely determined by its ancestry before the current retarget period, it is possible to implement the mechanism above efficiently and safely by caching the resulting state of every block at a period boundary, indexed by its parent.
 
 ==Support for future changes==
 
