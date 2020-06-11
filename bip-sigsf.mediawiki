@@ -1,6 +1,6 @@
 <pre>
   BIP: ???
-  Title: Modern soft-fork deployments
+  Title: Soft-Fork Activation via Hashpower or Height
   Author: ...
   Comments-Summary: No comments yet.
   Comments-URI: ???
@@ -12,32 +12,47 @@
 
 ==Abstract==
 
-This document specifies a proposed change to the semantics of the 'version' field in Bitcoin blocks, allowing multiple backward-compatible changes (further called "soft forks") to be deployed in parallel. It relies on interpreting the version field as a bit vector, where each bit can be used to track an independent change. These are tallied each retarget period. Once the consensus change succeeds or fails, the bit can be reused for later changes.
+This document specifies a proposed change to the conditions under which
+backward-compatible consensus changes ("soft forks") are activated,
+allowing activation to be coordinated either via adoption and signalling
+by a supermajority of hashpower, or mandatory activation at a particular
+height.
 
 ==Motivation==
 
-...
+The primary philosophical goal this proposal aims for is to allow improvements to be made to the consensus rules while minimising centralised decision making, whether by developers, miners or parts of industry.
+
+The process goals this proposal aims towards are:
+
+* Allowing proposed soft forks to fail to activate in the event of significant reasonable objections: if someone has a well-accepted, reasonable use of Bitcoin that is working today, and has no reason to believe would not continue working well into the future without a change, and which would be made impossible or significantly more difficult by a change, that change should not happen.
+
+* Prioritising high levels of adoption by nodes prior to activation: rule changes do not make sense unless nodes are enforcing the changed rules.
+
+* Using hashpower-based enforcement to reduce the risk of chain splits or consensus divergence: because nodes may not immediately deploy new software releases due to local administrative policies, a significant minority of nodes can be expected to not enforce any rule change for an extended period after a new soft fork is proposed for activation; if a supermajority of hashpower is enforcing the soft fork rules, the likelihood of a chain split that does not comply with the soft fork rules remaining the most work chain becomes extremely low, which allows for safe, early activation of the soft fork.
+
+* Retaining hashpower contributing to the chain even when miners are unable to enforce the new ruleset: because miners are anonymous and make substantial long-term infrastructure investments, some miners may be unable to upgrade their infrastructure in a timely manner. Where this affects many miners, the change should likely be reconsidered; but where it only affects a small proportion of miners, minimising the impact on those miners while going ahead with the change is likely the optimal outcome.
 
 ==Specification==
 
-Each soft fork deployment is specified by the following per-chain parameters (further elaborated below):
+Each soft fork deployment has a '''name''', which is a very brief description of the deployment, that may be reasonably used as an identifier, and is common across chains.
 
-# The '''name''' specifies a very brief description of the deployment, reasonable for use as an identifier.
+The behaviour of each soft fork deployment is specified by the following per-chain parameters:
+
 # The '''bit''' determines which bit in the nVersion field of the block is to be used to signal the soft fork lock-in and activation. It is chosen from the set {0,1,2,...,12}.
-# The '''signal_height''' specifies a minimum block height at which the bit gains its meaning, and must be a multiple of '''period'''.
-# The '''signal_periods''' specifies how many periods the first phase of signalling lasts.
+# The '''start_height''' specifies a minimum block height at which the bit gains its meaning, and must be a multiple of '''period'''.
+# The '''primary_periods''' specifies how many periods the primary phase of signalling lasts.
 # The '''quiet_periods''' specifies how many periods there are between the first phase of signalling and the second phase of signalling (which precedes mandatory activation).
-# The '''uasf_periods''' speficies how many periods there are for the second phase of signalling prior to mandatory activation.
+# The '''secondary_periods''' speficies how many periods there are for the second phase of signalling prior to mandatory activation.
 # The '''period''' specifies the number of blocks in a period.
-# The '''threshold''' specifies the number of signally blocks in a retarget period that will cause the change to activate.
+# The '''threshold''' specifies the number of signalling blocks in a retarget period that will cause the change to activate.
 
-===User Activated Soft Forks===
+Two activation modes are supported: conditional and guaranteed.
 
-The initial attempt at activation relies on the '''signal_height''' and '''signal_periods''' parameters -- signalling begins when the block height reaches '''signal_height''' and continues for '''signal_periods''' periods. If during any of those periods '''threshold''' blocks or more signal for activation, the deployment becomes locked in at the beginning of the next period, and becomes active as of the following period.
+In conditional activation, the soft fork has a single primary signalling phase, beginning at the specified start height and continuing for the specified number of periods. If the threshold of signalling blocks is met in any period during the primary phase, the soft fork locks in, otherwise it fails.
 
-If the initial attempt at activation fails, a second attempt may be undertaken treating it as a "user activated soft fork". This begins after '''quiet_periods''' periods have elapsed after the signalling period finished, and continues for '''uasf_periods''' periods. If '''threshold''' blocks or more signal for activation during this attempt, the deployment becomes locked in at the beginning of the next period, and becomes active as of the beginning of the following period. If this has not happened by the beginning of the last of the '''uasf_periods''', the deployment becomes locked in at the start of this last period, and then is active as of the first block after the '''uasf_periods''' have elapsed.
+In guaranteed activation, the soft fork undergoes three phases: the primary signalling phase, a quiet phase, and the secondary signalling phase. The primary phase precisely overlaps the primary phase of conditional activation, and if the threshold is passed during the phase, the soft fork locks in occurs in exactly the same way. Otherwise, after the primary signalling phase ends, a quiet phase begins, during which signalling is ignored, and following that a secondary signalling phase begins. During the secondary signalling phase, if the threshold is passed in a particular period, the soft fork locks in then, otherwise the soft fork locks in at the end of the secondary phase. With guaranteed activation, the soft fork is not able to fail.
 
-Implementations should only enable the initial attempt at activation initially, with the user activated approach only enabled either by the user manually allowing it (such as a "-uasf=deployment" command line option), or by code changes included in a later release of the software made towards the end of the initial activation signalling period, or during the quiet period.
+In line with the first process goal (allowing an activation to fail), implementations should use conditional activation when the deployment is first attempted. Later releases (particularly ones mades near to or during the quiet period) may change the default to guaranteed activation if, at that time, there are no reasonable technical objections to the proposal. Implementations should allow users to override the default from conditional activation to guaranteed implementation.
 
 ===Selection guidelines===
 
@@ -47,24 +62,23 @@ The following guidelines are suggested for selecting these parameters for a soft
 # '''bit''' must be selected such that no two concurrent softforks use the same bit.
 # The '''period''' should be 2016 for mainnet and testnet, and 144 for regtest.
 # The '''threshold''' must be between 1 and '''period''', and should be 1916 for mainnet (95% of 2016), 1512 for testnet (75% of 2016) and 108 for regtest (75% of 144).
-# '''signal_height''' must be greater than zero and should be set to a future block height, approximately one month (4320 blocks) after a software release date including the soft fork.
-This allows for some release delays, while preventing deployments being triggered as a result of running pre-release software.
-# The '''signal_periods''' should be 26 (one year for mainnet and testnet)
+# '''start_height''' must be greater than zero and should be set to a future block height, approximately one month (4320 blocks) after a software release date including the soft fork. This allows for some release delays, while preventing deployments being triggered as a result of running pre-release software.
+# The '''primary_periods''' should be 26 (one year for mainnet and testnet)
 # The '''quiet_periods''' should be 13 (six months for mainnet and testnet)
-# The '''uasf_periods''' should be 52 (two years for mainnet and testnet)
+# The '''secondary_periods''' should be 52 (two years for mainnet and testnet)
 
-A later deployment using the same bit is possible as long as its '''signal_height''' is greater than the prior deployment's final height, that is '''signal_height + period * (signal_periods + quiet_periods + uasf_periods)''', but it is discouraged until necessary, and even then recommended to have a pause in between to allow detection of buggy software.
+A later deployment using the same bit is possible as long as its '''start_height''' is greater than the prior deployment's final height, that is '''start_height + period * (primary_periods + quiet_periods + secondary_periods + 3)''', or '''start_height + period * (primary_periods + 3)''' if it is clear that guaranteed activation is not in use, but it is discouraged until necessary, and even then recommended to have a pause in between to allow detection of buggy software.
 
 ===States===
 
 With each block and soft fork, we associate a deployment state. The possible states are:
 
-# '''DEFINED''' is the first state for blocks prior to '''signal_height'''.
-# '''SIGNAL''' for blocks during the initial signalling phase.
-# '''FAILED''' for blocks after the initial signalling phase, if lock in does not occur, and the user-activated soft fork approach is not enabled.
-# '''QUIET''' for blocks after the initial signalling phase when lock in did not occur, but prior to the user-activated signalling phase, provided the user-activated soft fork approach is enabled.
-# '''UASF''' for blocks after the quiet phase.
-# '''LOCKED_IN''' for one period after the first period that was either (a) in SIGNAL or UASF phase, and in which at least threshold blocks signalled for activation; or (b) after '''uasf_periods-1''' periods in UASF.
+# '''DEFINED''' for blocks prior to '''start_height'''.
+# '''PRIMARY''' for blocks during the primary signalling phase.
+# '''FAILED''' for blocks after the primary signalling phase, if lock in does not occur, when the activation mode is conditional.
+# '''QUIET''' for blocks during the quiet phase.
+# '''SECONDARY''' for blocks during the secondary signalling phase.
+# '''LOCKED_IN''' for blocks in the first period after either (a) a period of blocks in either primary or secondary signalling phases in which '''threshold''' or more blocks signalled for deployment, or (b) the end of the secondary signalling phase.
 # '''ACTIVE''' for all blocks after the LOCKED_IN period.
 
 ===Bit flags===
@@ -72,7 +86,8 @@ With each block and soft fork, we associate a deployment state. The possible sta
 The nVersion block header field is to be interpreted as a 32-bit little-endian integer (as present), and bits are selected within this integer as values (1 << N) where N is the bit number. The top bits are restricted to 001 allowing two future upgrade methods; and the next 16 bits are reserved for other uses (for compatability with BIP-320).
 
 Signalling during the DEFINED, QUIET, LOCKED_IN, ACTIVE and FAILED states is ignored.
-During the STARTED and UASF states, signalling is optional and controls the state transitions.
+
+During the PRIMARY and SECONDARY states, signalling is optional and controls the state transitions.
 
 Miners should continue setting the bit in the QUIET and LOCKED_IN phases so uptake is visible, though this has no effect on consensus rules.
 
@@ -86,41 +101,39 @@ The new consensus rules for each soft fork are enforced for each block that has 
 
 <img src="bip-sigsf/states.png" align="middle"></img>
 
-The genesis block has state DEFINED for each deployment, by definition.
+Blocks prior to the starting height have state DEFINED for each deployment, by definition.
 
     State GetStateForBlock(block) {
         if (block.height < start_height) {
             return DEFINED;
         }
 
-All blocks within a retarget period have the same state.
-This means that if floor(block1.height / period) = floor(block2.height / period), they are guaranteed to have the same state for every deployment.
+Otherwise, a blocks state potentially depends on three things: the previous state, the height, and any signalling that occurred within the last period. The previous state is the first thing to reason about:
+
+        State prev_state = (block.height == 0 ? DEFINED : GetStateForBlock(block.parent);
+
+
+All blocks within a retarget period have the same state, so if we're not at a period boundary, that state does not change:
 
         if (block.height % period != 0) {
-            return GetStateForBlock(block.parent);
+            return prev_state;
         }
 
-But it depends on what the previous state was:
+If the previous state was ACTIVE or FAILED, this is final:
 
-        State prev_state = (block.height == 0 ? DEFINED : GetStateForBlock(GetAncestorAtHeight(block, block.height - period)));
-
-        switch (prev_state) {
-
-If the previous state was a final state, then we stay in it:
-
-        case ACTIVE:
-        case FAILED:
+        if (prev_state == ACTIVE || prev_state == FAILED) {
             return prev_state;
+        }
 
-If the previous state was locked in, the new state is always ACTIVE:
+The LOCKED_IN state only lasts for a single period, so since we know we're at a period boundary, we can immediately transition to ACTIVE:
 
-        case LOCKED_IN:
+        if (prev_state == LOCKED_IN) {
             return ACTIVE;
+        }
 
-If the previous state allowed signalling, that might get us to locked in, but if not, then our state is dictated entirely by our height.
+Otherwise we will transition states depending on either the height or signalling. First, check signalling:
 
-        case SIGNAL:
-        case UASF:
+        if (prev_state == PRIMARY || prev_state == SECONDARY) {
             int count = 0;
             walk = block;
             for (i = 0; i < period; i++) {
@@ -130,19 +143,21 @@ If the previous state allowed signalling, that might get us to locked in, but if
                 }
             }
             if (count >= threshold) return LOCKED_IN;
-            // fall through
+        }
 
-        case DEFINED:
-        case QUIET:
+Otherwise, we transition based on height:
+
         {
             int periods = (block.height - start_height) / period;
-            if (periods < signal_periods) {
-                return SIGNAL;
-            } else if (periods < signal_periods + quiet_periods) {
+            if (periods < primary_periods) {
+                return PRIMARY;
+            } else if (activation_mode == CONDITIONAL) {
+                return FAILED;
+            } else if (periods < primary_periods + quiet_periods) {
                 return QUIET;
-            } else if (periods < signal_periods + quiet_periods + uasf_periods - 1) {
-                return UASF;
-            } else if (periods < signal_periods + quiet_periods + uasf_periods) {
+            } else if (periods < primary_periods + quiet_periods + secondary_periods) {
+                return SECONDARY;
+            } else if (periods < primary_periods + quiet_periods + secondary_periods) {
                 return LOCKED_IN;
             } else {
                 return ACTIVE;
@@ -150,7 +165,6 @@ If the previous state allowed signalling, that might get us to locked in, but if
         }
 
 
-'''Implementation'''
 It should be noted that the states are maintained along block chain branches, but may need recomputation when a reorganization happens.
 
 Given that the state for a specific block/deployment combination is completely determined by its ancestry before the current retarget period, it is possible to implement the mechanism above efficiently and safely by caching the resulting state of every multiple-of-2016 block, indexed by its parent.
@@ -163,7 +177,7 @@ The mechanism described above is very generic, and variations are possible for f
 The 1916 block threshold (duplicated from BIP 9 and based on in BIP 34's 95%) does not have to be maintained for eternity
 
 '''Modified periods'''
-The 2016 block period aligned with difficulty retargeting is convenient for most deployments, but it may be desirable to change it if an urgent deployment is needed (compare with BIP 91).
+The 2016 block period (aligned with difficulty retargeting) is convenient for most deployments, but it may be desirable to change it if an urgent deployment is needed (compare with BIP 91).
 
 == Rationale ==
 
