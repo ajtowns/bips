@@ -24,7 +24,7 @@ The primary philosophical goal this proposal aims for is to allow improvements t
 
 The process goals this proposal aims towards are:
 
-* Allowing proposed soft forks to fail to activate in the event of significant reasonable objections: if someone has a well-accepted, reasonable use of Bitcoin that is working today, and has no reason to believe would not continue working well into the future without a change, and which would be made impossible or significantly more difficult by a change, that change should not happen.
+* Allowing proposed soft forks to fail to activate in the event of significant reasonable objections: if someone has a well-accepted, reasonable use of Bitcoin that is working today, and reasonable expects it to continue working well into the future, a soft fork that breaks that use case should not be activated.
 
 * Prioritising high levels of adoption by nodes prior to activation: rule changes do not make sense unless nodes are enforcing the changed rules.
 
@@ -40,19 +40,19 @@ The behaviour of each soft fork deployment is specified by the following per-cha
 
 # The '''bit''' determines which bit in the nVersion field of the block is to be used to signal the soft fork lock-in and activation. It is chosen from the set {0,1,2,...,12}.
 # The '''start_height''' specifies a minimum block height at which the bit gains its meaning, and must be a multiple of '''period'''.
+# The '''period''' specifies the number of blocks in a period.
 # The '''primary_periods''' specifies how many periods the primary phase of signalling lasts.
 # The '''quiet_periods''' specifies how many periods there are between the first phase of signalling and the second phase of signalling (which precedes mandatory activation).
 # The '''secondary_periods''' speficies how many periods there are for the second phase of signalling prior to mandatory activation.
-# The '''period''' specifies the number of blocks in a period.
-# The '''threshold''' specifies the number of signalling blocks in a retarget period that will cause the change to activate.
+# The '''threshold''' specifies the number of signalling blocks in a period that will cause the change to activate.
 
 Two activation modes are supported: conditional and guaranteed.
 
-In conditional activation, the soft fork has a single primary signalling phase, beginning at the specified start height and continuing for the specified number of periods. If the threshold of signalling blocks is met in any period during the primary phase, the soft fork locks in, otherwise it fails.
+In conditional activation, the soft fork has a single primary signalling phase, beginning at the specified start height and continuing for the specified number of periods. If the threshold of signalling blocks is met in any period during the primary phase, the soft fork locks in, otherwise it fails. In this case, the quiet and secondary periods parameters are not used.
 
 In guaranteed activation, the soft fork undergoes three phases: the primary signalling phase, a quiet phase, and the secondary signalling phase. The primary phase precisely overlaps the primary phase of conditional activation, and if the threshold is passed during the phase, the soft fork locks in occurs in exactly the same way. Otherwise, after the primary signalling phase ends, a quiet phase begins, during which signalling is ignored, and following that a secondary signalling phase begins. During the secondary signalling phase, if the threshold is passed in a particular period, the soft fork locks in then, otherwise the soft fork locks in at the end of the secondary phase. With guaranteed activation, the soft fork is not able to fail.
 
-In line with the first process goal (allowing an activation to fail), implementations should use conditional activation when the deployment is first attempted. Later releases (particularly ones mades near to or during the quiet period) may change the default to guaranteed activation if, at that time, there are no reasonable technical objections to the proposal. Implementations should allow users to override the default from conditional activation to guaranteed implementation.
+Implementations should always use conditional activation when the deployment attempt begins. Later releases of the implementation (particularly ones mades near to, during, or after the quiet period) may change the default to guaranteed activation only if, at that time, there are no reasonable technical objections to the proposal, and there is continued support for activation. Implementations should allow users to override the default from conditional activation to guaranteed implementation.
 
 ===Selection guidelines===
 
