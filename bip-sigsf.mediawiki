@@ -186,7 +186,7 @@ A living list of deployment proposals and their parameters can be found [[bip-si
 
 == Acknowledgements ==
 
-This proposal almost entirely follows the "Modern Soft Fork Activation" model described in [https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2020-January/017547.html Matt Corallo's January 2020 post to bitcoin-dev] post to the bitcoin-dev mailing list, which in turn credits Greg Maxwell for the original idea. The difference between conditional and guaranteed activation mirrors the concept of "user activated soft fork activation" described in [https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2017-February/013643.html Shaolin Fry's February 2017 post to bitcoin-dev], and this proposal shares some similarities with [https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2017-February/013643.html Shaolin Fry's April 2017 draft proposal].
+This proposal almost entirely follows the "Modern Soft Fork Activation" model described in [https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2020-January/017547.html Matt Corallo's January 2020 post to bitcoin-dev], which in turn credits Greg Maxwell for the original idea. The difference between conditional and guaranteed activation mirrors the concept of "user activated soft fork activation" described in [https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2017-February/013643.html Shaolin Fry's February 2017 post to bitcoin-dev], and this proposal shares some similarities with [https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2017-February/013643.html Shaolin Fry's April 2017 draft proposal].
 
 == Copyright ==
 
