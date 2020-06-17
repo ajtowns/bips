@@ -15,8 +15,8 @@
 This document specifies a proposed change to the conditions under which
 backward-compatible consensus changes ("soft forks") are activated,
 allowing activation to be coordinated either via adoption and signalling
-by a supermajority of hashpower, or mandatory activation at a particular
-height.
+by a supermajority of hashpower, or activation to be guaranteed to occur
+by a particular height independent of signalling.
 
 ==Motivation==
 
@@ -24,11 +24,11 @@ The primary philosophical goal this proposal aims for is to allow improvements t
 
 The process goals this proposal aims towards are:
 
-* Allowing proposed soft forks to fail to activate in the event of significant reasonable objections: if someone has a well-accepted, reasonable use of Bitcoin that is working today, and reasonable expects it to continue working well into the future, a soft fork that breaks that use case should not be activated.
-
 * Prioritising high levels of adoption by nodes prior to activation: rule changes do not make sense unless nodes are enforcing the changed rules.
 
-* Using hashpower-based enforcement to reduce the risk of chain splits or consensus divergence: because nodes may not immediately deploy new software releases due to local administrative policies, a significant minority of nodes can be expected to not enforce any rule change for an extended period after a new soft fork is proposed for activation; if a supermajority of hashpower is enforcing the soft fork rules, the likelihood of a chain split that does not comply with the soft fork rules remaining the most work chain becomes extremely low, which allows for safe, early activation of the soft fork.
+* Allowing proposed soft forks to fail to activate in the event of significant reasonable objections: for example, if someone has a well-accepted, reasonable use of Bitcoin that is working today, and reasonably expects it to continue working well into the future, a soft fork that breaks that use case should not be activated.
+
+* Using hashpower-based enforcement to reduce the risk of chain splits or consensus divergence. Because some node operators will not immediately deploy new software releases, it is expected that a significant minority of nodes will not enforce proposed rule changes for an extended period after a new soft fork is proposed for activation. If a supermajority of hashpower is enforcing the soft fork rules, the likelihood of a chain split that does not comply with the soft fork rules remaining the most work chain becomes extremely low, which allows earler activation of the soft fork to remain safe.
 
 * Retaining hashpower contributing to the chain even when miners are unable to enforce the new ruleset: because miners are anonymous and make substantial long-term infrastructure investments, some miners may be unable to upgrade their infrastructure in a timely manner. Where this affects many miners, the change should likely be reconsidered; but where it only affects a small proportion of miners, minimising the impact on those miners while going ahead with the change is likely the optimal outcome.
 
@@ -48,11 +48,11 @@ The behaviour of each soft fork deployment is specified by the following per-cha
 
 Two activation modes are supported: conditional and guaranteed.
 
-In conditional activation, the soft fork has a single primary signalling phase, beginning at the specified start height and continuing for the specified number of periods. If the threshold of signalling blocks is met in any period during the primary phase, the soft fork locks in, otherwise it fails. In this case, the quiet and secondary periods parameters are not used.
+In conditional activation<ref>'''Why support conditional activation?''' Conditional activation allows soft forks to fail (one of the process goals), and also allows earlier activation provided there is sufficient hashpower-based enforcement of the soft fork rules (another of the process goals).</ref>, the soft fork has a single primary signalling phase, beginning at the specified start height and continuing for the specified number of periods. If the threshold of signalling blocks is met in any period during the primary phase, the soft fork locks in, otherwise it fails. In this case, the quiet and secondary periods parameters are not used.<ref>'''How does conditional activation differ from [[bip-0009.mediawiki|BIP9]]?''' Conditional activation occurs in much the same way as BIP9, with the exception that phase transitions are specified by height rather than mediantime. This provides greater predictability, as it is always clear how many signalling blocks are possible; and slightly simplifies the implementation as there are fewer special cases where states may be missed due to unusual timestamp behaviour.</ref>
 
-In guaranteed activation, the soft fork undergoes three phases: the primary signalling phase, a quiet phase, and the secondary signalling phase. The primary phase precisely overlaps the primary phase of conditional activation, and if the threshold is passed during the phase, the soft fork locks in occurs in exactly the same way. Otherwise, after the primary signalling phase ends, a quiet phase begins, during which signalling is ignored, and following that a secondary signalling phase begins. During the secondary signalling phase, if the threshold is passed in a particular period, the soft fork locks in then, otherwise the soft fork locks in at the end of the secondary phase. With guaranteed activation, the soft fork is not able to fail.
+In guaranteed activation <ref>'''Why support guaranteed activation?''' Guaranteed activation is provided as a fallback method in case there is wide support for activation, and no reasonable objections against it, but supermajority hashpower enforcement is not achieved via conditional activation. If hashpower enforcement does not become available, a long timeframe is provided to ensure all bar a small minority of nodes will have been able to upgrade, in line with the first process goal (high levels of node adoption). This provides an alternative to other approaches to avoiding reliance on hashpower support such as [[bip-0008.mediawiki|BIP8]]<ref>'''How does guaranteed activation differ from BIP8?''' A significant drawback of BIP8 is that no failure path exists -- any soft fork with BIP8 parameters defined will eventually activate.</ref> or [[bip-0148.mediawiki|BIP148]] or [[bip-0091.mediawiki||BIP91]]<ref>'''How does guaranteed activation differ from BIP148 and BIP91?''' BIP148 and BIP91 provided for activation of the BIP9 segwit deployment by forcing miners to signal for its activation. This intentionally risked the possibility of orphaning blocks that failed to follow these new BIPs, with the possible result of small chainsplits and risks of doublespends as a result. This conflicts with final process goal above (retaining hashpower).</ref></ref>, the soft fork undergoes three phases: the primary signalling phase, a quiet phase, and the secondary signalling phase. The primary phase precisely overlaps the primary phase of conditional activation, and if the threshold is passed during the phase, the soft fork locks in occurs in exactly the same way. Otherwise, after the primary signalling phase ends, a quiet phase begins, during which signalling is ignored<ref>'''Why have a quiet phase?''' In the event that conditional activation fails, but there are no reasonable objections to activation, then it may take some time for node operators to either override their node software's activation setting (from conditional to guaranteed), or to upgrade their node software to a newer version where the deployment uses guaranteed activation by default. If activation by a supermajority of hashpower were to occur before a majority of nodes were updated, the soft fork rules may not be enforced consistently, creating a higher risk of temporary chain splits or other problems. Providing a dedicated quiet period for these updates to take place is intended to reduce that risk.</ref>, and following that a secondary signalling phase begins. During the secondary signalling phase, if the threshold is passed in a particular period, the soft fork locks in then, otherwise the soft fork locks in at the end of the secondary phase. With guaranteed activation, the soft fork is not able to fail.
 
-Implementations should always use conditional activation when the deployment attempt begins. Later releases of the implementation (particularly ones mades near to, during, or after the quiet period) may change the default to guaranteed activation only if, at that time, there are no reasonable technical objections to the proposal, and there is continued support for activation. Implementations should allow users to override the default from conditional activation to guaranteed implementation.
+Implementations should always default to conditional activation when the deployment attempt begins. Later releases of the implementation (particularly ones mades near to, during, or after the quiet period) may change the default to guaranteed activation provided that no reasonable objections to the proposal have been uncovered, and there is continued support for activation. Implementations should also allow users to override the default from conditional activation to guaranteed implementation, so that the soft fork rules can be enforced without needing to upgrade to a newer software version.
 
 ===Selection guidelines===
 
@@ -62,7 +62,7 @@ The following guidelines are suggested for selecting these parameters for a soft
 # '''bit''' must be selected such that no two concurrent softforks use the same bit.
 # The '''period''' should be 2016 for mainnet and testnet, and 144 for regtest.
 # The '''threshold''' must be between 1 and '''period''', and should be 1916 for mainnet (95% of 2016), 1512 for testnet (75% of 2016) and 108 for regtest (75% of 144).
-# '''start_height''' must be greater than zero and should be set to a future block height, approximately one month (4320 blocks) after a software release date including the soft fork. This allows for some release delays, while preventing deployments being triggered as a result of running pre-release software.
+# '''start_height''' must be a multiple of period, and should be set to a future block height, generally around one month (4320 blocks) after a software release date including the soft fork. This allows for some release delays, while preventing deployments being accidently triggered as a result of running pre-release software.
 # The '''primary_periods''' should be 26 (one year for mainnet and testnet)
 # The '''quiet_periods''' should be 13 (six months for mainnet and testnet)
 # The '''secondary_periods''' should be 52 (two years for mainnet and testnet)
@@ -81,17 +81,13 @@ With each block and soft fork, we associate a deployment state. The possible sta
 # '''LOCKED_IN''' for blocks in the first period after either (a) a period of blocks in either primary or secondary signalling phases in which '''threshold''' or more blocks signalled for deployment, or (b) the end of the secondary signalling phase.
 # '''ACTIVE''' for all blocks after the LOCKED_IN period.
 
-===Bit flags===
+===Bit flags in nVersion===
 
-The nVersion block header field is to be interpreted as a 32-bit little-endian integer (as present), and bits are selected within this integer as values (1 << N) where N is the bit number. The top bits are restricted to 001 allowing two future upgrade methods; and the next 16 bits are reserved for other uses (for compatability with BIP-320).
+The nVersion block header field is to be interpreted as a 32-bit little-endian integer (as present), and bits are selected within this integer as values (1 << N) where N is the bit number. The top bits (29 to 31) are restricted to 001 allowing two future upgrade methods, and the next 16 bits are reserved for other uses (for compatibility with [[bip-0320.mediawiki|BIP320]]). This leaves bits 0 to 12 (inclusive) for use in signaling<ref>'''Are 13 bits from nVerison enough?''' If a new deployment attempt is started once every 15 weeks (105 days or about 3.5 months), then the 14th deployment (the first one that will need to reuse a bit) will begin 195 weeks later, which is approximately 97.5 periods (2016 blocks per period, 2 weeks per 2016 blocks), while with standard parameters the next deployment's start_height should be no earlier than 95 periods later. So provided deployment attempts occur no more frequently than every 15 weeks, 13 nVersion bits should be sufficient.</ref>
 
-Signalling during the DEFINED, QUIET, LOCKED_IN, ACTIVE and FAILED states is ignored.
+Signalling during the DEFINED, QUIET, LOCKED_IN, ACTIVE and FAILED states is ignored. During the PRIMARY and SECONDARY states, signalling is optional and controls the state transitions.
 
-During the PRIMARY and SECONDARY states, signalling is optional and controls the state transitions.
-
-Miners should continue setting the bit in the QUIET and LOCKED_IN phases so uptake is visible, though this has no effect on consensus rules.
-
-Miners should cease setting the bit within the first two periods once either ACTIVE or FAILED state has been reached.
+Miners should continue setting the bit in the QUIET and LOCKED_IN phases so uptake is visible, though this has no effect on consensus rules. Miners should cease setting the bit within the first two periods once either ACTIVE or FAILED state has been reached.
 
 ===New consensus rules===
 
@@ -165,9 +161,9 @@ And we're done:
 
 It should be noted that the states are maintained along block chain branches, but may need recomputation when a reorganization happens.
 
-Because the state for a specific block/deployment combination is completely determined by its ancestry before the current retarget period, it is possible to implement the mechanism above efficiently and safely by caching the resulting state of every block at a period boundary, indexed by its parent.
+Because the state for a specific block/deployment combination is completely determined by its ancestry before the current period, it is possible to implement the mechanism above efficiently and safely by caching the resulting state of every block at a period boundary, indexed by its parent.
 
-==Support for future changes==
+==Possible future changes==
 
 The mechanism described above is very generic, and variations are possible for future soft forks. Here are some ideas that can be taken into account.
 
@@ -175,30 +171,24 @@ The mechanism described above is very generic, and variations are possible for f
 The 1916 block threshold (duplicated from BIP 9 and based on in BIP 34's 95%) does not have to be maintained for eternity
 
 '''Modified periods'''
-The 2016 block period (aligned with difficulty retargeting) is convenient for most deployments, but it may be desirable to change it if an urgent deployment is needed (compare with BIP 91).
+The 2016 block period (aligned with difficulty retargeting) is convenient for most deployments, but it may be desirable to change it if an urgent deployment is needed (for example, [[bip-0091.mediawiki|BIP91]] used a period of 336 blocks).
+
+'''Forced signalling'''
+While this proposal does not require forced signalling along the lines of [[bip-0148.mediawiki|BIP148]] or [[bip-0091.mediawiki|BIP91]] (due to the process goal of retaining hashpower where possible), nothing in this proposal should conflict with the use of forced signalling in some future softfork, if such a thing turns out to be desirable.
 
 == Rationale ==
 
+<references />
+
 Some notes to maybe expand on:
-
-improvements to bip9:
-* provides a way to lock in a soft-fork despite miner obstruction.
-* uses heights instead of timestamps to make it simpler to understand.
-* drops number of version bits to 13 (0-12) to match bip-320 (version bits above that seem to be actively used for rolling on mainnet)
-
-improvements to bip8: allows a deployed soft-fork to fail if it doesn't achieve consensus.
-
-compatible with bip148 style forced activation: being height based it's easy to predict which blocks need to signal for a soft-fork to be activated, so there does not need to be months of leeway given in case hashpower doesn't follow user wishes immediately.
 
 this requires devs to judge if consensus has been reached, but only after 12-18 months of the code being active on mainnet; and only code change dependent on devs' judgement is switching the "uasf_enabled_by_default" boolean for the deployment from false to true, so if dev's go crazy, user's can easily fork a client to behave as they want.
 
 for normal soft-forks that only restrict behaviour of previously non-standard transactions, miners do not risk losing money at any point, unless they deliberately mine non-standard transactions.
 
-requiring the UASF timeframe to be set from day one, allows eventual reuse of bits even if a soft fork was never activated, so it's clear that the new use of the bit refers to a new BIP.  It's deliberately very coarse grained, to take into account reasonable development and deployment delays.  There are unlikely to be enough failed proposals to cause a bit shortage. (13 bits with a 3.5 year lifespan per bit would cope with a new soft-fork attempt every four months)
-
 ==Deployments==
 
-A living list of deployment proposals can be found [[bip-sigsf/assignments.mediawiki|here]].
+A living list of deployment proposals and their parameters can be found [[bip-sigsf/assignments.mediawiki|here]].
 
 ==Copyright==
 
