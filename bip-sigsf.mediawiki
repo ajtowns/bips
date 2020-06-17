@@ -141,7 +141,6 @@ Otherwise, we transition based on height:
         if (block->height < start_height) {
             return DEFINED;
         }
-
         const int periods = (block->height - start_height) / period;
         if (periods < primary_periods) {
             return PRIMARY;
