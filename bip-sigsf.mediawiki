@@ -10,7 +10,7 @@
   License: BSD-2-Clause
 </pre>
 
-==Abstract==
+== Abstract ==
 
 This document specifies a proposed change to the conditions under which
 backward-compatible consensus changes ("soft forks") are activated,
@@ -18,7 +18,7 @@ allowing activation to be coordinated either via adoption and signalling
 by a supermajority of hashpower, or activation to be guaranteed to occur
 by a particular height independent of signalling.
 
-==Motivation==
+== Motivation ==
 
 The primary philosophical goal this proposal aims for is to allow improvements to be made to the consensus rules while minimising centralised decision making, whether by developers, miners or parts of industry.
 
@@ -32,7 +32,7 @@ The process goals this proposal aims towards are:
 
 * Retaining hashpower contributing to the chain even when miners are unable to enforce the new ruleset: because miners are anonymous and make substantial long-term infrastructure investments, some miners may be unable to upgrade their infrastructure in a timely manner. Where this affects many miners, the change should likely be reconsidered; but where it only affects a small proportion of miners, minimising the impact on those miners while going ahead with the change is likely the optimal outcome.
 
-==Specification==
+== Specification ==
 
 Each soft fork deployment has a '''name''', which is a very brief description of the deployment, that may be reasonably used as an identifier, and is common across chains.
 
@@ -54,7 +54,7 @@ In guaranteed activation<ref>'''Why support guaranteed activation?''' Guaranteed
 
 Implementations should always default to conditional activation when the deployment attempt begins. Later releases of the implementation (particularly ones mades near to, during, or after the quiet period) may change the default to guaranteed activation provided that no reasonable objections to the proposal have been uncovered, and there is continued support for activation<ref>'''How should developers decide to switch the default to guaranteed activation?''' The criteria for switching to guaranteed activation by default is intended to be based on obvious, relatively objective criteria: by the time the primary phase ends, it should be obvious if there are any reasonable objections, and whether there is any remaining support for activation. This is in line with the proposal's major philosophical goal of avoiding centralisation: with obvious, objective criteria anyone can reasonably be expected to come to the same conclusion, so developers are not put in a privileged position, and furthermore because the activation mode is only a default, it should be easy for the default to be changed back, either directly by users, or by other developers creating a fork.</ref>. Implementations should also allow users to override the default from conditional activation to guaranteed implementation, so that the soft fork rules can be enforced without needing to upgrade to a newer software version.
 
-===Selection guidelines===
+=== Selection guidelines ===
 
 The following guidelines are suggested for selecting these parameters for a soft fork:
 
@@ -69,7 +69,7 @@ The following guidelines are suggested for selecting these parameters for a soft
 
 A later deployment using the same bit is possible as long as its ''start_height'' is greater than the prior deployment's final height, that is ''start_height + period * (primary_periods + quiet_periods + secondary_periods + 3)'', or ''start_height + period * (primary_periods + 3)'' if it is clear that guaranteed activation is not in use. Reuse is discouraged until it is necessary, and even then it is recommended to have a pause in between to allow detection of buggy software that may be continuing to signal for the prior deployment.
 
-===States===
+=== States ===
 
 With each block and soft fork, we associate a deployment state. The possible states are:
 
@@ -81,23 +81,23 @@ With each block and soft fork, we associate a deployment state. The possible sta
 # '''LOCKED_IN''' for blocks in the first period after either (a) a period of blocks in either primary or secondary signalling phases in which '''threshold''' or more blocks signalled for deployment, or (b) the end of the secondary signalling phase.
 # '''ACTIVE''' for all blocks after the LOCKED_IN period.
 
-===Bit flags in nVersion===
+=== State transitions ===
 
-The nVersion block header field is to be interpreted as a 32-bit little-endian integer (as present), and bits are selected within this integer as values (''1 << N'') where ''N'' is the bit number. The top bits (29 to 31) are restricted to 001 allowing two future upgrade methods, and the next 16 bits are reserved for other uses (for compatibility with [[bip-0320.mediawiki|BIP320]]). This leaves bits 0 to 12 (inclusive) for use in signaling<ref>'''Are 13 bits from nVerison enough?''' If a new deployment attempt is started once every 15 weeks (105 days or about 3.5 months), then the 14th deployment (the first one that will need to reuse a bit) will begin 195 weeks later, which is approximately 97.5 periods (2016 blocks per period, 2 weeks per 2016 blocks), while with standard parameters the next deployment's start_height should be no earlier than 95 periods later. So provided deployment attempts occur no more frequently than every 15 weeks, 13 nVersion bits should be sufficient.</ref>
+<img src="bip-sigsf/states.png" align="middle"></img>
+
+=== Bit flags in nVersion ===
+
+The nVersion block header field is to be interpreted as a 32-bit little-endian integer (as present), and bits are selected within this integer as values (''1 << N'') where ''N'' is the bit number. The top bits (29 to 31) are restricted to 001 allowing two future upgrade methods, and the next 16 bits are reserved for other uses (for compatibility with [[bip-0320.mediawiki|BIP320]]). This leaves bits 0 to 12 (inclusive) for use in signaling<ref>'''Are 13 bits from nVerison enough?''' If a new deployment attempt is started once every 15 weeks (105 days or about 3.5 months), then the 14th deployment (the first one that will need to reuse a bit) will begin 195 weeks later, which is approximately 97.5 periods (2016 blocks per period, 2 weeks per 2016 blocks), while with standard parameters the next deployment's start_height should be no earlier than 95 periods later. So provided deployment attempts occur no more frequently than every 15 weeks, 13 nVersion bits should be sufficient.</ref>.
 
 Signalling during the DEFINED, QUIET, LOCKED_IN, ACTIVE and FAILED states is ignored. During the PRIMARY and SECONDARY states, signalling is optional and controls the state transitions.
 
 Miners should continue setting the bit in the QUIET and LOCKED_IN phases so uptake is visible, though this has no effect on consensus rules. Miners should cease setting the bit within the first two periods once either ACTIVE or FAILED state has been reached.
 
-===New consensus rules===
+=== New consensus rules ===
 
 The new consensus rules for each soft fork are enforced for each block that has ACTIVE state.
 
-===State transitions===
-
-<img src="bip-sigsf/states.png" align="middle"></img>
-
-===Implementation Sketch===
+=== Implementation Sketch ===
 
 A block's state potentially depends on three things: the previous state, the height, and any signalling that occurred within the last period. The previous state is the first thing to reason about:
 
@@ -163,7 +163,7 @@ It should be noted that the states are maintained along block chain branches, bu
 
 Because the state for a specific block/deployment combination is completely determined by its ancestry before the current period, it is possible to implement the mechanism above efficiently and safely by caching the resulting state of every block at a period boundary, indexed by its parent.
 
-==Possible future changes==
+== Possible future changes ==
 
 The mechanism described above is very generic, and variations are possible for future soft forks. Here are some ideas that can be taken into account.
 
@@ -174,16 +174,20 @@ The 1916 block threshold (duplicated from [[bip-0009.mediawiki|BIP9]] and based 
 The 2016 block period (aligned with difficulty retargeting) is convenient for most deployments, but it may be desirable to change it if an urgent deployment is needed (for example, [[bip-0091.mediawiki|BIP91]] used a period of 336 blocks).
 
 '''Forced signalling'''
-While this proposal does not require forced signalling along the lines of [[bip-0148.mediawiki|BIP148]] or [[bip-0091.mediawiki|BIP91]] (due to the process goal of retaining hashpower where possible), nothing in this proposal should conflict with the use of forced signalling in some future softfork, if such a thing turns out to be desirable.
+While this proposal does not require forced signalling along the lines of [[bip-0148.mediawiki|BIP148]] or [[bip-0091.mediawiki|BIP91]] (due to the process goal of retaining hashpower where possible), nothing in this proposal should conflict at a technical level with the use of forced signalling in some future softfork, if such a thing turns out to be desirable.
 
 == Rationale ==
 
 <references />
 
-==Deployments==
+== Deployments ==
 
 A living list of deployment proposals and their parameters can be found [[bip-sigsf/assignments.mediawiki|here]].
 
-==Copyright==
+== Acknowledgements ==
+
+This proposal almost entirely follows the "Modern Soft Fork Activation" model described in [https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2020-January/017547.html Matt Corallo's January 2020 post to bitcoin-dev] post to the bitcoin-dev mailing list, which in turn credits Greg Maxwell for the original idea. The difference between conditional and guaranteed activation mirrors the concept of "user activated soft fork activation" described in [https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2017-February/013643.html Shaolin Fry's February 2017 post to bitcoin-dev], and this proposal shares some similarities with [https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2017-February/013643.html Shaolin Fry's April 2017 draft proposal].
+
+== Copyright ==
 
 This BIP is licensed under the BSD 2-clause license.
