@@ -97,6 +97,10 @@ Miners should continue setting the bit in the QUIET and LOCKED_IN phases so upta
 
 The new consensus rules for each soft fork are enforced for each block that has ACTIVE state.
 
+== Rationale ==
+
+<references />
+
 === Implementation Sketch ===
 
 A block's state potentially depends on three things: the previous state, the height, and any signalling that occurred within the last period. The previous state is the first thing to reason about:
@@ -174,10 +178,6 @@ The 2016 block period (aligned with difficulty retargeting) is convenient for mo
 
 '''Forced signalling'''
 While this proposal does not require forced signalling along the lines of [[bip-0148.mediawiki|BIP148]] or [[bip-0091.mediawiki|BIP91]] (due to the process goal of retaining hashpower where possible), nothing in this proposal should conflict at a technical level with the use of forced signalling in some future softfork, if such a thing turns out to be desirable.
-
-== Rationale ==
-
-<references />
 
 == Deployments ==
 
