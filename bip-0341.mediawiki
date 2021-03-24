@@ -306,7 +306,7 @@ For Bitcoin mainnet, these BIPs will be deployed by "version bits" with the name
         }
         return ACTIVE;
 
-For Bitcoin mainnet, the BIP9 starttime will be midnight 24 April 2021 UTC (epoch timestamp 1619222400), BIP9 timeout will be midnight 14 August 2021 UTC (epoch timestamp 1628899200), the threshold is 1815 blocks (90%) instead of 1916 blocks (95%), and the min_activation_height is block 707616.
+For Bitcoin mainnet, the BIP9 starttime will be midnight 8 May 2021 UTC (epoch timestamp 1620432000), BIP9 timeout will be midnight 28 August 2021 UTC (epoch timestamp 1630108800), the threshold is 1815 blocks (90%) instead of 1916 blocks (95%), and the min_activation_height is block 709632.
 
 == Backwards compatibility ==
 As a soft fork, older software will continue to operate without modification.
