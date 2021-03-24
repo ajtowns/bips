@@ -294,7 +294,9 @@ Examples of preimage for sighashing for each of the sighash modes.
 
 == Deployment ==
 
-TODO
+This BIP is deployed concurrently with BIP340 and BIP342.
+
+For Bitcoin signet, these BIPs are always active.
 
 == Backwards compatibility ==
 As a soft fork, older software will continue to operate without modification.
