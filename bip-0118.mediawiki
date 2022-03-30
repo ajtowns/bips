@@ -139,7 +139,7 @@ The key differences from [[bip-0342.mediawiki|BIP 342]] signature verification a
 
 * In all cases, <code>key_version</code> is set to the constant value <code>0x01</code> instead of <code>0x00</code>.<ref>'''Why change key_version?''' Changing <code>key_version</code> ensures that if the same private key is used to generate both a [[bip-0342.mediawiki|BIP 342]] key and a BIP 118 public key, that a signature for the [[bip-0342.mediawiki|BIP 342]] key is not also valid for the BIP 118 public key (and vice-versa).</ref>
 * If <code>SIGHASH_ANYPREVOUT</code> is set, the digest is calculated as if <code>SIGHASH_ANYONECANPAY</code> was set, except <code>outpoint</code> is not included in the digest.
-* If <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> is set, the digest is calculated as if <code>SIGHASH_ANYONECANPAY</code> was set, except <code>outpoint</code>, <code>scriptPubKey</code> and <code>tapleaf_hash</code> are not included in the digest.
+* If <code>SIGHASH_ANYPREVOUTANYSCRIPT</code> is set, the digest is calculated as if <code>SIGHASH_ANYONECANPAY</code> was set, except <code>outpoint</code>, <code>amount</code>, <code>scriptPubKey</code> and <code>tapleaf_hash</code> are not included in the digest.
 
 == Security ==
 
