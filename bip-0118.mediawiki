@@ -185,8 +185,6 @@ Following this recommendation may require additional script branches, which may 
 
 TODO
 
-This may be deployed as a soft-fork either concurrent with, or subsequent to the deployment of [[bip-0340.mediawiki|BIP 340]], [[bip-0341.mediawiki|BIP 341]] and [[bip-0342.mediawiki|BIP 342]].
-
 == Backwards compatibility ==
 
 As a soft fork, older software will continue to operate without modification.
