@@ -1,0 +1,123 @@
+<pre>
+  BIP: XXX
+  Layer: Consensus (soft fork)
+  Title: Taproot Annex Format
+  Author:
+  Comments-Summary: No comments yet.
+  Comments-URI:
+  Status: Draft
+  Type: Standards Track
+  Created:
+  License: BSD-3-Clause
+  Requires: 340, 341, 342
+</pre>
+
+== Introduction ==
+
+=== Abstract ===
+
+This BIP describes a validation format for the taproot annex ([https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki BIP341]).
+It allows to extend the usual transaction fields with new data records allowing witness signatures to commit to them.
+The data records can be subject to new validation rules.
+
+=== Copyright ===
+
+This document is licensed under the 3-clause BSD license.
+
+=== Motivation ===
+
+From the limited set of Bitcoin transaction fields (i.e nVersion, inputs, outputs, nLocktime, etc)
+released in the early days of the network, few soft-forks occurred extending the validation semantic
+of some transaction fields (e.g [https://github.com/bitcoin/bips/blob/master/bip-0068.mediawiki BIP68])
+or adding whole new field to solve the malleability issue (e.g [https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki BIP141]). 
+While a generic mechanism consensusparamsto extend the block commmitments have been provisioned with BIP141, 
+there is lacking an equivalent generic mechanism to extend the transaction data fields.
+
+This proposal introduces a format to add new data fields in the Taproot annex. BIP341 mandates
+that if a witness includes at least two elements and the first byte of the last element is 0x50,
+this element is qualified as the annex. The remaining bytes semantics are defined by new validation
+rules following a Type-Length-Value format.
+
+Specific semantics for the new data fields can be introduced with future soft-forks to enable a range
+of use-cases. For now there is only one nLocktime field in a transaction and all inputs must share
+the same value. It could be possible to define per-input lock-time enabling aggregation of off-chain
+protocols transactions (e.g [https://github.com/lightning/bolts/blob/master/03-transactions.md#htlc-timeout-and-htlc-success-transactions Lightning HTLC-timeout]).
+A commitment to historical block hash could be also a new annex data field to enable replay protection
+in case of persisting forks. Another use-case, a group of input-outputs could be bundled and signed
+together to enable fee-bumping batching of off-chain protocols transactions. <ref> '''What if the
+use-cases require access to the annex fields by Script operations ?''' A new PUSH_ANNEX_RECORD could be
+defined to make accessible annex fields to Script operations. </ref> Beyond, the annex format aims to
+be reusable across spends of SegWit versions.
+
+== Specification ==
+
+=== Type-Length-Value Format ===
+
+A TLV (Type-Length-Value) format is used to allow for the backwards-compatible addition of new fields
+to the annex.
+
+A `tlv_record` represents a single annex field, encoded in the form:
+* `VarInt` | 1-byte `RecordLowerBitMask`: `type`
+* `VarInt`: length
+* `length`: value
+
+The `type` is encoded using the VarInt format <ref>'''Why using VarInt''' In practice, chances are the record
+value to be small following power law distribution. So if the small values can be stored in fewer bytes,
+that's a saving. </ref> and a 1-byte `RecordLowerMask`.
+
+The `length` is encoded using the VarInt format signaling the size of `value` in bytes.
+
+The value depends entirely on the `type` and should be encoded or decoded according to the annex record
+specific format determined by `type`.
+
+=== Annex parsing rules ===
+
+* The first byte of the annex is popped.
+* While the annex bytes stream is not empty:
+** VarInt-bytes are read from the annex bytes stream and stored in a uint64_t RecordHigherMask.
+** 1-byte is read from the annex bytes stream and stored in a uint8_t RecordLowerMask.
+** Let RecordType defined as: RecordHigherMask * 64 + (RecordLowerMask & 0x3F).
+** If (RecordLowerMask & 0xc0) == 0:
+*** VarInt-bytes are read from the annex and stored in a uint64_t RecordLength.
+*** RecordLength is incremented by 3.
+** Else:
+*** Let RecordLength defined as: ((RecordLowerMask & 0xc0) >> 6).
+** RecordLength is read from the annex bytes stream and stored in char vector RecordValue.
+
+TODO: how much low-level should be the description of the annex parsing rules ?
+
+=== Annex validation rules ===
+
+* If the annex bytes stream is lower than RecordLength, fail the validation.
+* If the annex type is invalid following the type validation semantics defined in future softforks, fail the validation.
+
+== Security ==
+
+=== DoSy annex ===
+
+Lengthy annex bytes stream could be given to nodes as a CPU DoS vector. Standard policy
+rules should be adequate to prevent that concern.
+
+If many annex fields are considered as valid, a compensation mechanism should be
+introduced to constrain witness producer to commit higher fees (e.g inflate witness
+weight in function of annex size).
+
+== Rationale ==
+
+<references />
+
+== Reference Implementation ==
+
+https://github.com/ariard/bitcoin/commits/2022-06-annex-format
+
+== Deployment ==
+
+
+== Backwards compatibility ==
+
+
+== Revisions ==
+
+== Acknowledgements ==
+
+Thanks to AJ Towns for originating many of the ideas in this BIP.
