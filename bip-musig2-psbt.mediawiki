@@ -38,54 +38,55 @@ The new per-input types are defined as follows:
 ! Name
 ! <tt><keytype></tt>
 ! <tt><keydata></tt>
-! <tt><keydata></tt> Description
 ! <tt><valuedata></tt>
-! <tt><valuedata></tt> Description
 ! Versions Requiring Inclusion
 ! Versions Requiring Exclusion
 ! Versions Allowing Inclusion
 |-
-| MuSig2 Participant Public Keys
+|rowspan="2"|MuSig2 Participant Public Keys
 | <tt>PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS = 0x19</tt>
-| <32 byte xonlypubkey>
-| The MuSig2 aggregate X only public key from the <tt>KeyAgg</tt> algorithm. This key may or may not
-be in the script directly. It may instead be a parent public key from which the public keys in the
-script were derived.
+| <tt><32 byte xonlypubkey></tt>
 | <tt><33 byte compressed pubkey>*</tt>
-| A list of the compressed public keys of the particpants in the MuSig2 aggregate key in the correct order. 
 |
 |
 | 0, 2
 |-
-| MuSig2 Public Nonce
+|colspan="2"|The MuSig2 aggregate X only public key from the <tt>KeyAgg</tt> algorithm. This key may or may not
+be in the script directly. It may instead be a parent public key from which the public keys in the
+script were derived.
+|colspan="4"|A list of the compressed public keys of the participants in the MuSig2 aggregate key in the correct order.
+|-
+|rowspan="2"|MuSig2 Public Nonce
 | <tt>PSBT_IN_MUSIG2_PUB_NONCE = 0x1a</tt>
-| <33 byte compressed pubkey> <32 byte xonlypubkey> <32 byte hash or omitted>
-| The compressed public key of the particpant providing this nonce, followed by the X only public
+| <tt><33 byte compressed pubkey> <32 byte xonlypubkey> <32 byte hash or omitted></tt>
+| <tt><66 byte public nonces</tt>
+|
+|
+| 0, 2
+|-
+|colspan="2"|The compressed public key of the participant providing this nonce, followed by the X only public
 key the participant is providing the nonce for, followed by the hash of the BIP 341 tapleaf hash of
 the Taproot leaf script that will be signed. If the aggregate key is the taproot internal key or the
 taproot output key, then the tapleaf hash must be omitted. Note that the second public key must be
 the key found in the script and not the aggregate public key that it was derived from, if it was
 derived from an aggregate key.
-| <tt><66 byte public nonces</tt>
-| The public nonces produced by the <tt>NonceGen</tt> algorithm.
+|colspan="4"|The public nonces produced by the <tt>NonceGen</tt> algorithm.
+|-
+|rowspan="2"|MuSig2 Participant Partial Signature
+| <tt>PSBT_IN_MUSIG_PARTIAL_SIG = 0x1b</tt>
+| <tt><33 byte compressed pubkey> <32 byte xonlypubkey> <32 byte hash or omitted></tt>
+| <tt><32 byte partial signature></tt>
 |
 |
 | 0, 2
 |-
-| MuSig2 Participant Partial Signature
-| <tt>PSBT_IN_MUSIG_PARTIAL_SIG = 0x1b</tt>
-| <33 byte compressed pubkey> <32 byte xonlypubkey> <32 byte hash or omitted>
-| The compressed public key of the particpant providing this partial signature, followed by the X
+|colspan="2"|The compressed public key of the participant providing this partial signature, followed by the X
 only public key the participant is providing the signature for, followed by the BIP 341 tapleaf hash
 of the Taproot leaf script that will be signed. If the aggregate key is the taproot internal key or
 the taproot output key, then the tapleaf hash must be omitted. Note that the second public key must
 be the key found in the script and not the aggregate public key that it was derived from, if it was
 derived from an aggregate key.
-| <tt><32 byte partial signature></tt>
-| The partial signature produced by the <tt>Sign</tt> algorithm.
-|
-|
-| 0, 2
+|colspan="4"|The partial signature produced by the <tt>Sign</tt> algorithm.
 |}
 
 The new per-output types are defined as follows:
@@ -94,24 +95,23 @@ The new per-output types are defined as follows:
 ! Name
 ! <tt><keytype></tt>
 ! <tt><keydata></tt>
-! <tt><keydata></tt> Description
 ! <tt><valuedata></tt>
-! <tt><valuedata></tt> Description
 ! Versions Requiring Inclusion
 ! Versions Requiring Exclusion
 ! Versions Allowing Inclusion
 |-
-| MuSig2 Participant Public Keys
+|rowspan="2"|MuSig2 Participant Public Keys
 | <tt>PSBT_OUT_MUSIG2_PARTICIPANT_PUBKEYS = 0x08</tt>
-| <33 byte compressed pubkey>
-| The MuSig2 aggregate plain public key from the <tt>KeyAgg</tt> algorithm. This key may or may not
-be in the script directly. It may instead be a parent public key from which the public keys in the
-script were derived.
+| <tt><33 byte compressed pubkey></tt>
 | <tt><33 byte compressed pubkey>*</tt>
-| A list of the compressed public keys of the particpants in the MuSig2 aggregate key in the correct order. 
 |
 |
 | 0, 2
+|-
+|colspan="2"|The MuSig2 aggregate plain public key from the <tt>KeyAgg</tt> algorithm. This key may or may not
+be in the script directly. It may instead be a parent public key from which the public keys in the
+script were derived.
+|colspan="4"|A list of the compressed public keys of the participants in the MuSig2 aggregate key in the correct order.
 |}
 
 ==Roles==
