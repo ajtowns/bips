@@ -882,6 +882,13 @@ Those proposing changes should consider that ultimately consent may rest with th
 | Matt Corallo
 | Standard
 | Final
+|-
+| [[bip-0153.md|153]]
+| Peer Services
+| Sharing Block Templates with Peers
+| Anthony Towns
+| Standard
+| Draft
 |- style="background-color: #ffcfcf"
 | [[bip-0154.mediawiki|154]]
 | Peer Services
@@ -889,13 +896,13 @@ Those proposing changes should consider that ultimately consent may rest with th
 | Karl-Johan Alm
 | Standard
 | Withdrawn
-|-
+|- style="background-color: #cfffcf"
 | [[bip-0155.mediawiki|155]]
 | Peer Services
 | addrv2 message
 | Wladimir J. van der Laan
 | Standard
-| Draft
+| Final
 |- style="background-color: #ffcfcf"
 | [[bip-0156.mediawiki|156]]
 | Peer Services
