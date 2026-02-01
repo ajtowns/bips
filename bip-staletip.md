@@ -12,18 +12,34 @@
 
 ## Abstract
 
-- P2P protocol extension for sharing information about valid-PoW blocks not on the active chain
-- Uses BIP 434 feature negotiation
-- New STALETIP message format
+Bitcoin miners sporadically produce stale blocks (that is, new blocks that
+don't improve on the cumulative proof of work of the current tip). This
+BIP defines a peer-to-peer (P2P) message that can be used to announce
+recent stale block headers (and the availability of the transaction
+content of those stale blocks) to peers.
 
 ## Motivation
 
-- Stale blocks represent real mining work, useful for:
-  - Research/statistics on mining decentralization and block propagation
-  - Identifying network propagation issues
-  - Historical record of near-misses
-- Currently no standard way to share this information
-- Nodes discard stale blocks; information is lost
+Being aware of stale blocks can be useful in ensuring the health of the
+Bitcoin network.
+
+The most immediate and practical benefit, is that when there is a stale
+block with the same cumulative proof of work as the current active tip,
+there is the potential for the current active tip to be reorged
+out in favour of a child of the stale block. In this case, having the
+stale block already downloaded (and possibly already validated) will
+make dealing with the reorg faster.
+
+A more long term benefit of tracking stale blocks is that it allows for
+an indirect measurement of the efficiency with which miners are able to
+update to a new tip (in that slower updates to new tips will result in
+more stale blocks), and a measure of the differences in block creation
+policy between mining pools (in that the contents of stale blocks will
+tend to show how similar or different the mining pools' mempools are at
+the point in time that the blocks were found).
+
+These benefits are not essential to the operation of the Bitcoin network,
+so this is proposed as an optional feature, with low performance demands.
 
 ## Specification
 
