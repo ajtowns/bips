@@ -43,11 +43,6 @@ so this is proposed as an optional feature, with low performance demands.
 
 ## Specification
 
-### Feature Negotiation
-
-- Feature ID: [to be determined]
-- Feature data: 1 byte (0x00 = headers mode, 0x01 = blocks mode)
-
 ### STALETIP Message Format
 
 - `hash_fork_point`: uint256 - block where stale chain forks from active chain
@@ -59,55 +54,52 @@ so this is proposed as an optional feature, with low performance demands.
 - First header: full 80 bytes
 - Subsequent headers: omit `prev_block` (implied), varint delta for timestamp
 
+### STALETIP Feature Negotiation
+
+- `staletip` message SHOULD NOT be sent unless the peer has indicated support for
+  the STALETIP feature.
+- Feature ID: `https://github.com/ajtowns/bitcoin/tree/202601-staleblocks`
+- Feature data: 1 byte (0x00 = headers mode, 0x01 = blocks mode)
+
 ### Sending STALETIP Messages
 
-- Peer has indicated support via feature negotiation
 - Node becomes aware of new stale tip not previously sent to this peer
 - Tip meets eligibility criteria
 - Peer's mode preference (headers vs blocks) is satisfied
-
-#### Eligibility Criteria
-
-- Fork point is on active chain
-- Fork point has at least minimum-chain-work
-- Tip height >= `active_tip_height` - `MAX_HEIGHT_DELTA`
-- Fork length <= `MAX_FORK_LENGTH`
+- Fork point:
+   - is an ancestor of the earliest, highest work block the peer has advertised
+   - has at least minimum-chain-work
+- Stale tip should be recent (eg with 1000 blocks of the main tip)
+- Fork length should be small
 
 ### Receiving STALETIP Messages
 
-- Validate `hash_fork_point` refers to block on active chain
-- Validate headers chain correctly from fork point
-- Check tip meets eligibility criteria
-- If valid and new: track the stale tip
-- Optionally request block data if `have_block` is true
+- Validate `hash_fork_point` is known block
+- Optional: validate headers chain is short and recent
+- Validate headers chain from fork point
+- Add valid headers to db
+- Cache stale tip, and advertise it to other peers
+- Optional: request block data, if `have_block` was indicated
 
-## DoS Considerations
+## Considerations
+
+### DoS Considerations
 
 - [To be written]
 
-## Privacy Considerations
+### Privacy Considerations
 
 - [To be written]
 
-## Signet Considerations
+### Signet Considerations
 
 - [To be written: require block data, variant header validation]
 
-## Using Stale Tip Information
+### Using Stale Tip Information
 
 - [To be written]
 
-## Rationale
-
-### Feature ID
-
-### Compressed headers
-
-### `MAX_HEIGHT_DELTA`
-
-### `MAX_FORK_LENGTH`
-
-## Backward Compatibility
+### Backward Compatibility
 
 This BIP introduces a new P2P message (`staletip`) and relies on [BIP 434][BIP434]
 for feature negotiation. Nodes that do not implement this BIP will simply not
@@ -118,6 +110,16 @@ Nodes implementing this BIP will not send `staletip` messages to peers that
 have not indicated support via the feature negotiation mechanism.
 
 There is no impact on consensus rules or existing P2P message handling.
+
+## Rationale
+
+### Feature ID
+
+### Compressed headers
+
+### `MAX_HEIGHT_DELTA`
+
+### `MAX_FORK_LENGTH`
 
 ## Reference Implementation
 
