@@ -45,87 +45,67 @@ so this is proposed as an optional feature, with low performance demands.
 
 ### Feature Negotiation
 
-- Feature ID: URL to development branch (currently "https://github.com/ajtowns/bitcoin/tree/202601-staleblocks")
-- Feature data: 1 byte boolean (prefer_blocks)
-  - true: only send tips where we have full block data
-  - false: send tips when headers are known
+- Feature ID: [to be determined]
+- Feature data: 1 byte (0x00 = headers mode, 0x01 = blocks mode)
 
 ### STALETIP Message Format
 
-- hash_fork_point: uint256 - hash of last common block on active chain
-- headers: vector of CompressedBlockHeader
-- have_block: boolean - whether sender has full block data for tip
+- `hash_fork_point`: uint256 - block where stale chain forks from active chain
+- `headers`: CompressedBlockHeader[] - headers from fork point (exclusive) to tip (inclusive)
+- `have_block`: bool - whether sender has transaction data for tip
 
-### CompressedBlockHeader Format
+#### CompressedBlockHeader Format
 
-- Compact encoding of block headers in a chain
-- Uses varint deltas for timestamps
 - First header: full 80 bytes
-- Subsequent headers: omit prev_block (implied from chain)
+- Subsequent headers: omit `prev_block` (implied), varint delta for timestamp
 
-### Eligibility Criteria
+### Sending STALETIP Messages
 
-- Fork point must be on active chain
-- Fork point must have sufficient work (not pre-minimum-chain-work)
-- Tip height >= active_tip_height - MAX_HEIGHT_DELTA (1000)
-- Fork length <= MAX_FORK_LENGTH (20 blocks)
-- Signet: must have full block data (not headers-only)
+- Peer has indicated support via feature negotiation
+- Node becomes aware of new stale tip not previously sent to this peer
+- Tip meets eligibility criteria
+- Peer's mode preference (headers vs blocks) is satisfied
 
-### Node Behavior
+#### Eligibility Criteria
 
-#### Receiving STALETIP
+- Fork point is on active chain
+- Fork point has at least minimum-chain-work
+- Tip height >= `active_tip_height` - `MAX_HEIGHT_DELTA`
+- Fork length <= `MAX_FORK_LENGTH`
 
-- Validate fork point exists and is on active chain
+### Receiving STALETIP Messages
+
+- Validate `hash_fork_point` refers to block on active chain
 - Validate headers chain correctly from fork point
-- If tip already known: ignore (or request blocks if missing)
-- If valid new tip: add to cache, optionally request block data
+- Check tip meets eligibility criteria
+- If valid and new: track the stale tip
+- Optionally request block data if `have_block` is true
 
-#### Sending STALETIP
+## DoS Considerations
 
-- Track stale tips in cache
-- Announce new tips to peers who sent feature message
-- Respect peer's prefer_blocks setting
-- Don't re-announce tips peer already knows
+- [To be written]
 
-### Operational Modes (-staletips option)
+## Privacy Considerations
 
-- none: disabled, don't send or relay
-- headers: announce when headers known
-- blocks: announce only after full block data received
+- [To be written]
+
+## Signet Considerations
+
+- [To be written: require block data, variant header validation]
+
+## Using Stale Tip Information
+
+- [To be written]
 
 ## Rationale
 
-### Why compressed headers?
+### Feature ID
 
-- Reduces message size for multi-block forks
-- Previous block hash is redundant (implied by chain)
+### Compressed headers
 
-### Why MAX_HEIGHT_DELTA of 1000?
+### `MAX_HEIGHT_DELTA`
 
-- Balances usefulness vs resource usage
-- Tips older than ~1 week unlikely to be interesting
-- [need to verify reasoning from code]
-
-### Why MAX_FORK_LENGTH of 20?
-
-- Longer forks are extremely rare in practice
-- Limits resource usage for validation/storage
-- [need to verify reasoning from code]
-
-### Why require block data on signet?
-
-- Signet uses signed blocks with variant headers
-- Can't fully validate header without block data
-- Prevents invalid tips from being relayed
-
-### Privacy considerations
-
-- Feature enabled by default is not identifying (widespread deployment)
-- Timing of announcements: natural network latency provides variation
-- Stale blocks rare (~1.2/week): insufficient for timing correlation
-- Generating stale blocks for fingerprinting prohibitively expensive (~$250k)
-- Recommendation: nodes with intermittent connectivity should use -staletips=none
-  - Reconnecting node might announce "old" tips, revealing downtime pattern
+### `MAX_FORK_LENGTH`
 
 ## Backward Compatibility
 
