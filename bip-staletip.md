@@ -23,7 +23,7 @@ content of those stale blocks) to peers.
 Being aware of stale blocks can be useful in ensuring the health of the
 Bitcoin network.
 
-The most immediate and practical benefit, is that when there is a stale
+The most immediate and practical benefit is that when there is a stale
 block with the same cumulative proof of work as the current active tip,
 there is the potential for the current active tip to be reorged
 out in favour of a child of the stale block. In this case, having the
@@ -54,16 +54,17 @@ feature"):
 
  * `https://github.com/ajtowns/bitcoin/tree/202601-staleblocks`
 
-The `staletip` feature data is a single boolean, `prefers_blocks`,
-indicating whether the node advertising the feature prefers to collect
-the full block data associated with a stale tip (when `true`), or just
-the header information (when `false`). For future compatibility, nodes
-SHOULD ignore any additional feature data that may be provided.
+The `staletip` feature data is a boolean, `prefers_blocks`, indicating
+whether the node advertising the feature prefers to collect the full
+block data associated with a stale tip (when `true`, encoded as `\x01`),
+or just the header information (when `false`, encoded as `\x00`). For
+future compatibility, nodes SHOULD ignore any additional feature data
+that may be provided.
 
 ### The `staletip` message
 
-The `staletip` message is defined as a message with `pchCommand == "staletip"`
-and a payload of:
+The `staletip` message is defined as a message with the ASCII message type
+`staletip` and a payload of:
 
 | Type      | Name         | Description |
 | --------- | ------------ | ----------- |
@@ -77,6 +78,12 @@ vector. Only minimally-encoded `CompactSize` values are supported. The
 `bool` serialization is a single byte `\x00` for false, and a single byte
 `\x01` for true.
 
+The `headers` field is ordered from oldest (the header immediately
+following the fork point) to newest (the stale tip itself).
+
+Because stale tips are very rare, this BIP does not reserve a 1-byte
+[BIP 324][BIP324] message type ID for the `staletip` message.
+
 #### `CompressedHeader` Format
 
 The `CompressedHeader` is a 48 byte structure equivalent to
@@ -87,7 +94,7 @@ hash[^rat-compressedheader]. That is:
 | ---- | ------------- | ---------- | ----------- |
 |    4 | `version`     | `int32_t`  | Block version information
 |   32 | `merkle_root` | `uint256`  | The Merkle root of the block's transactions
-|    4 | `timestamp`   | `uint32_t` | The block's timestamp
+|    4 | `time`        | `uint32_t` | The block's timestamp
 |    4 | `bits`        | `uint32_t` | The calculated difficulty target being used for this block
 |    4 | `nonce`       | `uint32_t` | The nonce used to generate this block
 
@@ -96,14 +103,14 @@ hash[^rat-compressedheader]. That is:
 Nodes implementing this BIP MAY send `staletip` messages to advertise
 recent stale tips they are aware of. If so,
 
-- `staletip` messages SHOULD NOT be sent unless the peer has indicated
+- Nodes SHOULD send `staletip` messages advertising recent stale tips
+  that they are aware of to peers that support the `staletip` feature.
+- `staletip` messages SHOULD NOT be sent to peers that have not indicated
   support for the `staletip` feature.
-- Nodes MUST NOT advertise stale tips that violate header consensus rules
+- Nodes SHOULD NOT advertise stale tips that violate header consensus rules
   (invalid version, invalid timestamps, invalid difficulty changes,
   insufficient proof of work).
-- Nodes SHOULD send `staletip` messages to their peers about recent
-  stale tips that they are aware of.
-- Nodes SHOULD NOT send `staletip` messages if they are not sure that the
+- Nodes MUST NOT send `staletip` messages if they are not sure that the
   `fork_point` is a block that their peer is aware of. This can be
   estimated by tracking the highest work blocks announced by the peer,
   and assuming the peer is treating that block as its active tip. Provided
@@ -121,21 +128,80 @@ recent stale tips they are aware of. If so,
   thresholds[^rat-denialofservice].
 - Nodes SHOULD avoid advertising the same tip to the same peer repeatedly
   via multiple `staletip` messages.
-  - As a consequence, nodes SHOULD respect the `prefers_blocks` settings;
-    that is, if a peer sets `prefers_blocks` to `false`, it SHOULD relay
-    stale headers immediately without waiting to obtain the block data,
-    and conversely, for a peer that sets `prefers_blocks` to `true`, a
-    node that does attempt to obtain block data SHOULD defer sending the
-    `staletip` message to that peer until it has obtained the block data.
+  - As a consequence, nodes SHOULD respect the `prefers_blocks` setting.
+    That is, if a peer sets `prefers_blocks` to `false`, stale tips SHOULD
+    be relayed to that peer immediately, without waiting to obtain the
+    block data.  And conversely, for a peer that sets `prefers_blocks` to
+    `true`, a node that does attempt to obtain block data SHOULD defer
+    sending the `staletip` message to that peer until it has obtained
+    the block data.
+- Nodes that have the block data corresponding to the tip block (and will
+  provide that data to peers that request it) SHOULD set `have_block`
+  as `true`. Nodes without the full block data, or that are unwilling
+  to relay the data to peers, SHOULD set `have_block` as `false`.
 
-### Receiving STALETIP Messages
+### Receiving `staletip` messages
 
-- Validate `fork_point` is known block
-- Optional: validate headers chain is short and recent
-- Validate headers chain from fork point
-- Add valid headers to db
-- Cache stale tip, and advertise it to other peers
-- Optional: request block data, if `have_block` was indicated
+Nodes implementing this BIP MAY process `staletip` messages from peers
+to gain more knowledge about stale tips. If so,
+
+- Nodes SHOULD advertise support for the feature, by sending the `feature`
+  message with the `staletip` feature id and feature data as defined above,
+  prior to sending the `verack` message.
+- Nodes SHOULD reject (ignore) `staletip` messages where the `fork_point` is
+  not known, and MAY disconnect the sending peer if this occurs. (Note
+  that it was specified above that the sending peer MUST be sure the
+  receiver knows the `fork_point` block before sending a `staletip`
+  message).
+- Nodes SHOULD reject `staletip` messages when the `headers` vector
+  is empty, and MAY disconnect the sending peer if this occurs.
+- When processing a `staletip` message, nodes MUST ensure that a
+  denial of service vector[^rat-denialofservice] is not created. One way
+  of achieving this is to mirror the checks applied to the content of
+  the `headers` message. However it is also possible to be more strict,
+  requiring that:
+   * the `fork_point` is a recent block[^rat-maxheight]
+   * the number of entries in `headers` is small[^rat-maxforklen], and,
+   * that the headers meet minimum proof-of-work thresholds[^rat-denialofservice].
+- Nodes MAY ignore messages that violate denial of service checks, or MAY
+  partially process headers until the limits are reached. Nodes SHOULD
+  NOT disconnect or otherwise punish peers that send a message that
+  exceeds the denial of service limits.
+- After receiving a `staletip` message that passes any denial of
+  service checks, nodes SHOULD reconstruct the block headers from the
+  `CompressedHeader` encoding, validate the headers, and add any new
+  valid headers to their block database.
+- Nodes SHOULD ignore any headers found to be invalid, and SHOULD NOT disconnect
+  or otherwise punish peers for relaying invalid headers[^rat-ignoreinvalid].
+- If `have_block` is `true`, nodes that prefer to collect the full block
+  data SHOULD request that data in the normal way (eg, by sending a
+  `getdata` message).
+- Nodes that receive a new stale tip SHOULD announce that tip to their
+  peers.
+
+#### Reconstructing headers
+
+Headers may be reconstructed from a `staletip` message via the following
+algorithm:
+
+```
+    std::vector<CBlockHeader> headers;
+    uint256 prev_hash = staletip_msg.fork_point;
+    for (const auto& ch : staletip_msg.headers) {
+        headers.emplace_back({
+            .nVersion = ch.version,
+            .hashPrevBlock = prev_hash,
+            .hashMerkleRoot = ch.merkle_root,
+            .nTime = ch.time,
+            .nBits = ch.bits,
+            .nNonce = ch.nonce,
+        });
+        prev_hash = headers.back().GetHash();
+    }
+```
+
+Note that headers are reconstructed in order, from oldest (closest to
+the fork point), to newest (the stale tip itself).
 
 ## Considerations
 
@@ -143,9 +209,15 @@ recent stale tips they are aware of. If so,
 
 - [To be written]
 
-### Signet Considerations
+### Test Network Considerations
+
+#### Signet
 
 - [To be written: require block data, variant header validation]
+
+#### Testnet3, Testnet4
+
+- [To be written: require the stale tip to have meaningful proof of work, versus being a minimum difficulty block?]
 
 ### Using Stale Tip Information
 
@@ -170,16 +242,17 @@ There is no impact on consensus rules or existing P2P message handling.
 
 ## Test Vectors
 
-- [To be added: example STALETIP messages]
-- [To be added: example CompressedBlockHeader encoding]
+- [To be added: example `staletip` messages]
 
 ## Copyright
 
 This BIP is licensed under the 3-clause BSD license.
 
+[BIP324]: https://github.com/bitcoin/bips/blob/master/bip-0324.md
 [BIP434]: https://github.com/bitcoin/bips/blob/master/bip-0434.md
 
 [^rat-compressedheader]: ... compressed headers rationale
 [^rat-maxheight]: ... `MAX_HEIGHT_DELTA` rationale
 [^rat-maxforklen]: ... `MAX_FORK_LENGTH` rationale
 [^rat-denialofservice]: ... min pow rationale, and avoiding header spam
+[^rat-ignoreinvalid]: ... why ignore invalid messages instead of punishing?
