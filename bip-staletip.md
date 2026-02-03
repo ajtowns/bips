@@ -486,4 +486,9 @@ This BIP is licensed under the 3-clause BSD license.
     stale tips, this ensures that total bandwidth when relaying all known
     stale tips to a new peer is under 10kB.
 
-[^rat-ignoreinvalid]: ... why ignore invalid messages instead of punishing?
+[^rat-ignoreinvalid]: Ignoring rather than punishing allows nodes to apply
+    different limits for what stale tips they accept. If one node
+    uses stricter limits than its peers, this avoids the risk that
+    honest announcements from those peers will cause disconnection and
+    potentially network partitions.  This is also consistent with how
+    invalid headers are handled.
