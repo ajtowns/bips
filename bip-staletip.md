@@ -398,9 +398,27 @@ This BIP is licensed under the 3-clause BSD license.
 [BIP324]: https://github.com/bitcoin/bips/blob/master/bip-0324.md
 [BIP434]: https://github.com/bitcoin/bips/blob/master/bip-0434.md
 [#33266]: https://github.com/bitcoin/bitcoin/issues/33266
+[#19858]: https://github.com/bitcoin/bitcoin/pull/19858
 
-[^rat-compressedheader]: ... compressed headers rationale
-[^rat-maxheight]: ... `MAX_HEIGHT_DELTA` rationale
+[^rat-compressedheader]: Omitting the previous block hash from each header
+    saves 32 bytes per header (40%), as this field can be reconstructed
+    from the preceding headers in the message. This does not apply to
+    the first header, of course, which is why the fork point must be
+    included explicitly. We avoid attempting to omit `nBits` or compress
+    `nTime` or `nVersion`, as reconstructing them is significantly more
+    complicated, for comparatively much less potential gain.
+
+[^rat-maxheight]: A window of 1000 blocks (about 7 days) provides a
+    reasonable balance between limiting resource usage, and maximising
+    propagation potential. By limiting the distance to the tip to being no
+    older than the previous retarget period, we ensure that the difficulty
+    of creating a stale block is comparable to creating a new tip, making
+    it uneconomical to use this as a spamming mechanism. By choosing
+    a longer period, we provide the opportunity for nodes interested in
+    stale block data for research purposes plenty of opportunity to obtain
+    the data. In particular, many nodes will tend to discover it through
+    the periodic blocks-only connections (see Bitcoin Core PR [#19858]).
+
 [^rat-maxforklen]: ... `MAX_FORK_LENGTH` rationale
 [^rat-denialofservice]: ... min pow rationale, and avoiding header spam
 [^rat-ignoreinvalid]: ... why ignore invalid messages instead of punishing?
