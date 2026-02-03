@@ -52,7 +52,7 @@ interpreted as described in RFC 2119.
 This BIP defines a new [BIP 434][BIP434] feature id ("the `staletip`
 feature"):
 
- * `https://github.com/ajtowns/bitcoin/tree/202601-staleblocks`
+ * `https://github.com/ajtowns/bitcoin/tree/202601-staletips`
 
 The `staletip` feature data is a boolean, `prefers_blocks`, indicating
 whether the node advertising the feature prefers to collect the full
