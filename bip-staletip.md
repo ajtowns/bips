@@ -353,7 +353,7 @@ This test vector is from signet, where a 19-block stale branch occurred at heigh
 | Branch length     | 19 |
 | `have_block`      | `false` |
 
-Serialized `staletip` message (946 bytes):
+Serialized `staletip` payload (946 bytes):
 
 ```
 1c7e50802a59c42d780861d2c154a87cb02ff42305a933af2ede2f60120000001300000020
@@ -384,11 +384,65 @@ ba4298e764acb4177249ce7d68e6883836f70d1d9218b355c16e691658151d28a432060000
 ef05d0412f42221e6ac56e691658151d8f8bfb0f00
 ```
 
-Message breakdown:
+Payload breakdown:
 - Bytes 0-31: `fork_point` (uint256, little-endian)
 - Byte 32: vector length (0x13 = 19)
 - Bytes 33-944: 19 `CompressedHeader` (48 bytes each)
 - Byte 945: `have_block` (0x00 = `false`)
+
+### BCH Fork Headers (18 blocks)
+
+This test vector uses mainnet headers from the BCH fork. Blocks 478559-478576
+have valid Bitcoin headers (meeting proof-of-work requirements), but are
+invalid Bitcoin blocks (block 478559 exceeds the 1MB block size limit).
+Block 478577 changed difficulty under BCH's Emergency Difficulty Adjustment
+rules, making it an invalid Bitcoin header as well.
+
+| Field             | Value |
+| ----------------- | ----- |
+| Network           | Mainnet |
+| Fork point height | 478558 |
+| Fork point hash   | `0000000000000000011865af4122fe3b144e2cbeea86142e8ff2fb4107352d43` |
+| Stale tip height  | 478576 |
+| Stale tip hash    | `000000000000000001416af072f8989829f4c60a1a9658e1cec08411798e4ffa` |
+| Branch length     | 18 |
+| `have_block`      | `false` |
+
+Serialized `staletip` payload (898 bytes):
+
+```
+432d350741fbf28f2e1486eabe2c4e143bfe2241af65180100000000000000001200000020
+abaa4bd8a48c1c6bc08ee39b66065e5e9484304cab8b56d5eed3e40b1ac996c899c4805935
+47011822ca4ae80000002082afc8ef7eb41a4ecac1fea46983742e491f804ad662e3745ab9
+c6c4297d8a0862c980593547011840a772cb0200002058874e50628fdf83aeea4e8cbc7ade
+946e9ba14bcb1d8ffb28c3daf8ade84df65fca805935470118e2f5100300000020111b85f9
+d3b969a1f7ff3d50af08893c500edfc5623b96dbeab6daf16a5164a40ace805935470118c4
+f4240a0000002040a045063b551b61d6a1c9db6d3231e2d7403185bbb2332ae1f66db24aac
+7fa288d8805935470118f15dd76b0000002070cb14529e8757c359c2e8b1e987f6eee6fbc4
+472ee9ad4a2e5df6905c19d6d70bed80593547011885ae00d0000000209653314c1d73e463
+0bb485fb25ce7a2583cec7c3ccfc27a6d24163be1e9fb19530f4805935470118f17ad2c500
+000020cdf48b8e7ac6bf3a51d1878ee3ff7e6fd0022926dd69cc5cc8d9126e77c4dba809f5
+8059354701188114e83600000020890cf1dc60edbf0fd4fb667f28ac785849c031d8b24d5e
+5a0af56ee2bd8a739bf51081593547011812f32a9600000020ff5244613ad20fdc39b7ee6f
+4fbc7016432d2dbf45c2a950c59665b39c3954b5b525815935470118aa790d6600000020ae
+ed520e7c1693de5cfe7531e7d3e73dff7858b09cb6e1ec29229a75c3da2b92453e81593547
+011830a4314d000000202e4a4054e64c3f5810c23ec0144d9793aab2d5a7d77d1660eee24d
+3d55e8b715b543815935470118da1c00e00000002073152af68778a98fd984a158aeb29d28
+e094e23c3a7dff02260c345791e52498c3fb8159354701188d5abed90000002022606e744a
+29f9d4a67ff1fcd2f0e31300ddbd145f8f1db8a68270bfbde77dd88fff8159354701186af1
+75f8000000209f5db27969fecc0ef71503279069b2df981ba545592a7b425f353b5060e77f
+3e7e13825935470118da70378e000000202f0d316b08350f5cd998c6a11762d10adb9f951b
+5f79ce2a073f8187c05f561f1b1c8259354701184834c62300000020cf8fc3bad8dad139a3
+dd6a30481d87e1f760122573168002cc9ef7a58fc53ad387848259354701188a3b54f70000
+00200eae92d9b46d81a011a79726a802d4eb195a7af8b70a09b0e115c391968c50d51c8a82
+5935470118cd786d1300
+```
+
+Payload breakdown:
+- Bytes 0-31: `fork_point` (uint256, little-endian)
+- Byte 32: vector length (0x12 = 18)
+- Bytes 33-896: 18 `CompressedHeader` (48 bytes each)
+- Byte 897: `have_block` (0x00 = `false`)
 
 ## Copyright
 
