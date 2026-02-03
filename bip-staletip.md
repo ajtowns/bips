@@ -334,8 +334,8 @@ relay entirely on the nodes they use for processing their mined blocks.
 
 ## Reference Implementation
 
-- Bitcoin Core branch: [link to branch]
-- Key files: staletips.h, staletips.cpp, net_processing.cpp changes
+- Bitcoin Core branch: https://github.com/ajtowns/bitcoin/tree/202601-staletips
+- Key files: `staletips.h`, `staletips.cpp`; also `net_processing.cpp` changes
 
 ## Test Vectors
 
