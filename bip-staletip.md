@@ -226,6 +226,53 @@ the fork point), to newest (the stale tip itself).
 Node software implementing this BIP SHOULD provide a configuration option
 to disable it entirely.
 
+### Test Networks
+
+Making this feature available on test networks raises additional concerns,
+as they are less protected by proof of work, and thus may have a larger
+attack surface for denial of service issues. As a result, node software
+implementing this BIP may choose to do so only for mainnet.
+
+#### Signet
+
+The signet network is designed around the assumption that all valid
+blocks are signed, and thus much lower proof of work is needed. However,
+because the block signatures are included in the coinbase transaction,
+it cannot be verified if only the block's headers are available. As such,
+when implementing this BIP for signet:
+
+ * Nodes MUST NOT send `staletip` messages when they do not have the
+   corresponding block.
+ * Nodes MAY disconnect peers that send a `staletip` message with
+   `have_block` set to `false`.
+ * Nodes SHOULD set `prefers_blocks` to true when negotiating the feature,
+   as they will always need to download the full block for a stale tip
+   to validate the signature.
+
+In addition, when the difficulty is low, it is possible that varying the
+`nBits` field of a valid block will generate another valid block (see
+[#33266][#33266]). As such,
+
+ * Nodes SHOULD consider variant headers (where the previous block and
+   merkle root are both the same) to be duplicates, and only advertise
+   the first seen variant as a stale tip.
+
+While nodes MAY also deduplicate such variant headers when receiving them
+via `staletip` messages, if they do not perform the same deduplication
+logic when receiving such headers via standard `headers` or `block`
+relay, that provides little protection. Deduplicating when sending `staletip`
+messages is primarily aimed at avoiding nodes implementing this BIP from
+being used to amplify attacks.
+
+Only variant tips need to be deduplicated: it is possible (though
+unlikely) that valid, signed blocks may be descendants of variant
+blocks. These blocks will not themselves be variants, as they will have
+different previous blocks.
+
+#### Testnet3, Testnet4
+
+- [To be written: require the stale tip to have meaningful proof of work, versus being a minimum difficulty block?]
+
 ## Backward Compatibility
 
 This BIP introduces a new P2P message (`staletip`) and relies on [BIP
@@ -265,16 +312,6 @@ is almost no chance of winning the stale block race. As such, miners
 operating private transaction pools should probably disable stale tip
 relay entirely on the nodes they use for processing their mined blocks.
 
-## Stale Tips on Test Networks
-
-### Signet
-
-- [To be written: require block data, variant header validation]
-
-### Testnet3, Testnet4
-
-- [To be written: require the stale tip to have meaningful proof of work, versus being a minimum difficulty block?]
-
 ## Reference Implementation
 
 - Bitcoin Core branch: [link to branch]
@@ -290,6 +327,7 @@ This BIP is licensed under the 3-clause BSD license.
 
 [BIP324]: https://github.com/bitcoin/bips/blob/master/bip-0324.md
 [BIP434]: https://github.com/bitcoin/bips/blob/master/bip-0434.md
+[#33266]: https://github.com/bitcoin/bitcoin/issues/33266
 
 [^rat-compressedheader]: ... compressed headers rationale
 [^rat-maxheight]: ... `MAX_HEIGHT_DELTA` rationale
