@@ -271,7 +271,27 @@ different previous blocks.
 
 #### Testnet3, Testnet4
 
-- [To be written: require the stale tip to have meaningful proof of work, versus being a minimum difficulty block?]
+While testnet3 and testnet4 blocks are proof of work based like mainnet,
+they both allow for low difficulty blocks:
+
+ - testnet3 allows minimum difficulty blocks when a block's timestamp
+   is 20 minutes after the previous block's timestamp, and resets the
+   difficulty on an ongoing basis if this occurs for the last block in
+   a retarget period.
+ - testnet4 updates these rules (as specified in [BIP 94][BIP94]), basing
+   the difficulty calculation for the first block in a new retarget period
+   on the difficulty of the first block in the previous retarget period,
+   rather than the previous block, avoiding a reset.
+
+As a result, nodes could see many valid stale tips with minimum difficulty,
+either due to such tips being created with long timestamps, or, on testnet3,
+because the difficulty has been reset. To avoid this scenario, when
+implementing this BIP on testnet3 or testnet4:
+
+ * Nodes SHOULD only advertise stale tips when the stale tip itself has
+   a difficulty greater than the minimum difficulty.
+ * Nodes MAY advertise stale tips only when the stale tip itself has
+   a difficulty greater than some higher threshold (eg 1,000,000).
 
 ## Backward Compatibility
 
@@ -325,6 +345,7 @@ relay entirely on the nodes they use for processing their mined blocks.
 
 This BIP is licensed under the 3-clause BSD license.
 
+[BIP94]: https://github.com/bitcoin/bips/blob/master/bip-0094.mediawiki
 [BIP324]: https://github.com/bitcoin/bips/blob/master/bip-0324.md
 [BIP434]: https://github.com/bitcoin/bips/blob/master/bip-0434.md
 [#33266]: https://github.com/bitcoin/bitcoin/issues/33266
