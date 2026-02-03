@@ -179,6 +179,24 @@ to gain more knowledge about stale tips. If so,
 - Nodes that receive a new stale tip SHOULD announce that tip to their
   peers.
 
+#### Active Tip Announcements
+
+In order for peers to send you `staletip` messages, they must be able
+to track which block is your active tip in order to correctly deduce if
+you already know about the fork point corresponding to new stale tips.
+
+Currently, many node implementations make a small optimisation in
+their block announcement handling that conflicts with this requirement;
+namely, they will not announce a block to a peer if they have already
+processed an announcement for the same block from that peer at the time
+they validate the block. That said, due to delays in obtaining block data
+and validating the block, it is usually the case that two well-connected
+peers will announce the same new block to each other.
+
+Nodes implementing this BIP SHOULD always announce their new active tip
+to all peers. To minimise additional bandwidth, they MAY do so via an
+`inv` message (rather than a `headers` or compact block message), however.
+
 #### Reconstructing headers
 
 Headers may be reconstructed from a `staletip` message via the following
@@ -203,37 +221,27 @@ algorithm:
 Note that headers are reconstructed in order, from oldest (closest to
 the fork point), to newest (the stale tip itself).
 
-## Considerations
+## Backward Compatibility
 
-### Privacy Considerations
+This BIP introduces a new P2P message (`staletip`) and relies on [BIP
+434][BIP434] for feature negotiation to avoid impacting nodes that do
+not support this BIP. Nodes that do not support this BIP will at most
+see more frequent notifications of when their peers update to a new
+tip that they have already announced.
+
+## Privacy Impact
 
 - [To be written]
 
-### Test Network Considerations
+## Stale Tips on Test Networks
 
-#### Signet
+### Signet
 
 - [To be written: require block data, variant header validation]
 
-#### Testnet3, Testnet4
+### Testnet3, Testnet4
 
 - [To be written: require the stale tip to have meaningful proof of work, versus being a minimum difficulty block?]
-
-### Using Stale Tip Information
-
-- [To be written]
-
-### Backward Compatibility
-
-This BIP introduces a new P2P message (`staletip`) and relies on [BIP 434][BIP434]
-for feature negotiation. Nodes that do not implement this BIP will simply not
-send the corresponding `feature` message, and will therefore not receive
-`staletip` messages from peers that do implement it.
-
-Nodes implementing this BIP will not send `staletip` messages to peers that
-have not indicated support via the feature negotiation mechanism.
-
-There is no impact on consensus rules or existing P2P message handling.
 
 ## Reference Implementation
 
