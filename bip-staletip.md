@@ -122,10 +122,10 @@ recent stale tips they are aware of. If so,
 - Nodes MAY choose a `fork_point` based on their own active chain,
   even if that results in the `headers` vector repeating some headers
   that the peer already knows.
-- Nodes SHOULD NOT advertise stale tips that are not
-  recent[^rat-maxheight], that diverge significantly from the active
-  tip[^rat-maxforklen], or that do not meet minimum proof-of-work
-  thresholds[^rat-denialofservice].
+- Nodes SHOULD limit the number of stale tips they advertise, and in particular
+  SHOULD NOT advertise stale tips that are not recent[^rat-maxheight],
+  that diverge significantly from the active tip[^rat-maxforklen], or
+  that do not meet minimum proof-of-work thresholds[^rat-denialofservice].
 - Nodes SHOULD avoid advertising the same tip to the same peer repeatedly
   via multiple `staletip` messages.
   - As a consequence, nodes SHOULD respect the `prefers_blocks` setting.
@@ -473,6 +473,17 @@ This BIP is licensed under the 3-clause BSD license.
     the data. In particular, many nodes will tend to discover it through
     the periodic blocks-only connections (see Bitcoin Core PR [#19858]).
 
-[^rat-maxforklen]: ... `MAX_FORK_LENGTH` rationale
-[^rat-denialofservice]: ... min pow rationale, and avoiding header spam
+[^rat-maxforklen]: Limiting the branch length to 20 headers avoids nodes
+    being burdened with tracking deliberate chain splits. When
+    incompatible consensus rules are enforced, the majority chain need not
+    continue sharing the minority's fork beyond a short window. Twenty
+    blocks is sufficient to capture the short-term stale blocks useful
+    for reorg detection, while avoiding long-term tracking of persistent
+    chain splits.
+
+[^rat-denialofservice]: Limiting stale branches to 20 headers bounds the
+    per-message size to under 1kB. Combining this with a limit of 10 tracked
+    stale tips, this ensures that total bandwidth when relaying all known
+    stale tips to a new peer is under 10kB.
+
 [^rat-ignoreinvalid]: ... why ignore invalid messages instead of punishing?
